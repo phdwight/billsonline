@@ -91,3 +91,15 @@ tbody tr:hover { background: rgba(59,130,246,0.07); }
 .flashes li.success { border-left-color: var(--success); }
 
 .section-title { margin-top: 0; margin-bottom: .75rem; }
+
+.badge {
+	display: inline-block;
+	margin-left: .5rem;
+	padding: .1rem .35rem;
+	border-radius: 999px;
+	font-size: .7rem;
+	letter-spacing: .5px;
+	color: #fff;
+	background: linear-gradient(135deg, var(--primary), #8b5cf6);
+	border: 1px solid var(--border);
+}

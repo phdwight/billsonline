@@ -11,7 +11,8 @@ from app.models import MonthlyBill, MeterReading, Participant
 
 
 def make_p(id, name, include=True):
-    p = Participant(id=id, name=name, include_in_internet=include)
+    # include flag no longer used; internet is split among all participants
+    p = Participant(id=id, name=name)
     return p
 
 
@@ -35,10 +36,10 @@ def test_calculation_basic_distribution():
     assert by_name["Alice"].water == 33.33
     assert by_name["Bob"].water == 33.33
     assert by_name["Cara"].water == 33.33
-    # Internet among included (Alice, Bob) -> 40 each
-    assert by_name["Alice"].internet == 40.0
-    assert by_name["Bob"].internet == 40.0
-    assert by_name["Cara"].internet == 0.0
+    # Internet among all -> 26.67 each
+    assert by_name["Alice"].internet == 26.67
+    assert by_name["Bob"].internet == 26.67
+    assert by_name["Cara"].internet == 26.67
 
 
 def test_zero_total_usage_electricity():

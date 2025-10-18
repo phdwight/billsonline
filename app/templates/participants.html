@@ -6,7 +6,6 @@
   <thead>
     <tr>
       <th>Name</th>
-      <th>Included in Internet</th>
       <th>Actions</th>
     </tr>
   </thead>
@@ -17,9 +16,6 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <td>
           <input name="name" value="{{ p.name }}" required>
-        </td>
-        <td>
-          <input type="checkbox" name="include_in_internet" {% if p.include_in_internet %}checked{% endif %}>
         </td>
         <td>
           <button type="submit" class="btn btn-primary">Save</button>

@@ -9,21 +9,12 @@
           Name
           <input name="name" placeholder="e.g., Alice" required>
         </label>
-        <label>
-          <span>Included in Internet</span>
-          <input type="checkbox" name="include_in_internet" checked>
-        </label>
         <button class="btn btn-primary" type="submit">Add Participant</button>
       </form>
       <ul>
         {% for p in participants %}
         <li>
           {{ p.name }}
-          <form method="post" action="{{ url_for('main.toggle_internet', pid=p.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="include" value="{{ 'on' if not p.include_in_internet else '' }}">
-            <button type="submit" class="btn btn-secondary">{{ 'Include in Internet' if not p.include_in_internet else 'Exclude from Internet' }}</button>
-          </form>
         </li>
         {% endfor %}
       </ul>
