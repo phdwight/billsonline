@@ -15,9 +15,9 @@
   <h3>Enter Meter Readings</h3>
   <form method="post" action="{{ url_for('main.submit_readings', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <table>
+  <table class="adj-table">
       <thead>
-        <tr>
+  <tr class="adj-row">
           <th>Participant</th>
           <th>Previous</th>
           <th>Current</th>
@@ -48,15 +48,18 @@
   <p class="muted" style="margin-top:.25rem;"><small>
     Tip: You can exclude someone from any bill by zeroing that component for them in the Adjustments section.
   </small></p>
-  <form method="post" action="{{ url_for('main.save_adjustments', bill_id=bill.id) }}">
+  <form id="adjustments-form" method="post" action="{{ url_for('main.save_adjustments', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <table>
       <thead>
         <tr>
           <th>Participant</th>
           <th>Zero Electricity</th>
+          <th>Electricity Redistribution</th>
           <th>Zero Water</th>
+          <th>Water Redistribution</th>
           <th>Zero Internet</th>
+          <th>Internet Redistribution</th>
         </tr>
       </thead>
       <tbody>
@@ -64,15 +67,123 @@
         {% set flags = adjustments.get(p.id, {}) %}
         <tr>
           <td>{{ p.name }}</td>
-          <td><input type="checkbox" name="adj_electricity_{{ p.id }}" {% if flags.get('electricity') %}checked{% endif %}></td>
-          <td><input type="checkbox" name="adj_water_{{ p.id }}" {% if flags.get('water') %}checked{% endif %}></td>
-          <td><input type="checkbox" name="adj_internet_{{ p.id }}" {% if flags.get('internet') %}checked{% endif %}></td>
+          <td>
+            <input type="checkbox" name="adj_electricity_{{ p.id }}" {% if flags.get('electricity') %}checked{% endif %}>
+            <button type="button" class="linklike adj-inline-toggle" data-toggle="elec-{{ p.id }}">Details</button>
+          </td>
+          <td>
+            {% set comp = 'electricity' %}
+            {% set rule = flags.get('redis_' ~ comp) or {} %}
+            {% if flags.get('electricity') %}
+            <div class="redis-box adj-collapsed" data-panel="elec-{{ p.id }}">
+              <div style="display:flex; gap:.25rem; align-items:center;">
+                <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
+                <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
+                  <option value="">—</option>
+                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
+                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
+                </select>
+              </div>
+              <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-top:.25rem;">
+                {% for t in participants %}
+                  {% if t.id != p.id %}
+                    <label for="redis_{{ comp }}_{{ p.id }}_{{ t.id }}"><small>{{ t.name }}</small></label>
+                    {% set targets = rule.get('targets') or {} %}
+                    <div style="display:flex; align-items:center; gap:.25rem;">
+                      <input type="number" step="0.01" min="0" name="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" id="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:7rem;">
+                      {% set m = rule.get('mode') %}
+                      <span class="muted redis-suffix" data-suffix="{{ comp }}-{{ p.id }}" style="min-width:1.5rem; text-align:center;">
+                        {% if m == 'percent' %}%{% elif m == 'amount' %}₱ {% endif %}
+                      </span>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+                <div></div>
+                <div class="muted" data-redis-summary="{{ comp }}-{{ p.id }}"><small></small></div>
+              </div>
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            <input type="checkbox" name="adj_water_{{ p.id }}" {% if flags.get('water') %}checked{% endif %}>
+            <button type="button" class="linklike adj-inline-toggle" data-toggle="water-{{ p.id }}">Details</button>
+          </td>
+          <td>
+            {% set comp = 'water' %}
+            {% set rule = flags.get('redis_' ~ comp) or {} %}
+            {% if flags.get('water') %}
+            <div class="redis-box adj-collapsed" data-panel="water-{{ p.id }}">
+              <div style="display:flex; gap:.25rem; align-items:center;">
+                <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
+                <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
+                  <option value="">—</option>
+                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
+                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
+                </select>
+              </div>
+              <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-top:.25rem;">
+                {% for t in participants %}
+                  {% if t.id != p.id %}
+                    <label for="redis_{{ comp }}_{{ p.id }}_{{ t.id }}"><small>{{ t.name }}</small></label>
+                    {% set targets = rule.get('targets') or {} %}
+                    <div style="display:flex; align-items:center; gap:.25rem;">
+                      <input type="number" step="0.01" min="0" name="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" id="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:7rem;">
+                      {% set m = rule.get('mode') %}
+                      <span class="muted redis-suffix" data-suffix="{{ comp }}-{{ p.id }}" style="min-width:1.5rem; text-align:center;">
+                        {% if m == 'percent' %}%{% elif m == 'amount' %}₱ {% endif %}
+                      </span>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+                <div></div>
+                <div class="muted" data-redis-summary="{{ comp }}-{{ p.id }}"><small></small></div>
+              </div>
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            <input type="checkbox" name="adj_internet_{{ p.id }}" {% if flags.get('internet') %}checked{% endif %}>
+            <button type="button" class="linklike adj-inline-toggle" data-toggle="inet-{{ p.id }}">Details</button>
+          </td>
+          <td>
+            {% set comp = 'internet' %}
+            {% set rule = flags.get('redis_' ~ comp) or {} %}
+            {% if flags.get('internet') %}
+            <div class="redis-box adj-collapsed" data-panel="inet-{{ p.id }}">
+              <div style="display:flex; gap:.25rem; align-items:center;">
+                <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
+                <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
+                  <option value="">—</option>
+                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
+                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
+                </select>
+              </div>
+              <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-top:.25rem;">
+                {% for t in participants %}
+                  {% if t.id != p.id %}
+                    <label for="redis_{{ comp }}_{{ p.id }}_{{ t.id }}"><small>{{ t.name }}</small></label>
+                    {% set targets = rule.get('targets') or {} %}
+                    <div style="display:flex; align-items:center; gap:.25rem;">
+                      <input type="number" step="0.01" min="0" name="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" id="redis_{{ comp }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:7rem;">
+                      {% set m = rule.get('mode') %}
+                      <span class="muted redis-suffix" data-suffix="{{ comp }}-{{ p.id }}" style="min-width:1.5rem; text-align:center;">
+                        {% if m == 'percent' %}%{% elif m == 'amount' %}₱ {% endif %}
+                      </span>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+                <div></div>
+                <div class="muted" data-redis-summary="{{ comp }}-{{ p.id }}"><small></small></div>
+              </div>
+            </div>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     <div style="display:flex; gap:.5rem; align-items:center; flex-wrap: wrap;">
-      <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
+      <button id="save-adjustments" class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
       <button class="btn btn-secondary" type="submit" formaction="{{ url_for('main.reset_adjustments', bill_id=bill.id) }}">
         <svg class="icon icon-left"><use href="#icon-unarchive"/></svg>Reset all adjustments
       </button>
@@ -109,18 +220,245 @@
             </span>
           {% endif %}
         </td>
-        <td>{{ '%.2f'|format(c.electricity) }}</td>
-        <td>{{ '%.2f'|format(c.water) }}</td>
-        <td>{{ '%.2f'|format(c.internet) }}</td>
+        <td>
+          {{ '%.2f'|format(c.electricity) }}
+          {% set rule = (adjustments.get(c.participant.id) or {}).get('redis_electricity') %}
+          {% if rule %}
+            {% set parts = [] %}
+            {% if rule.get('mode') == 'percent' %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+            {% else %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+            {% endif %}
+            <span class="badge" title="Custom: {{ rule.get('mode') }} -> {{ parts|join(', ') }}">R</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ '%.2f'|format(c.water) }}
+          {% set rule = (adjustments.get(c.participant.id) or {}).get('redis_water') %}
+          {% if rule %}
+            {% set parts = [] %}
+            {% if rule.get('mode') == 'percent' %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+            {% else %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+            {% endif %}
+            <span class="badge" title="Custom: {{ rule.get('mode') }} -> {{ parts|join(', ') }}">R</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ '%.2f'|format(c.internet) }}
+          {% set rule = (adjustments.get(c.participant.id) or {}).get('redis_internet') %}
+          {% if rule %}
+            {% set parts = [] %}
+            {% if rule.get('mode') == 'percent' %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+            {% else %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+            {% endif %}
+            <span class="badge" title="Custom: {{ rule.get('mode') }} -> {{ parts|join(', ') }}">R</span>
+          {% endif %}
+        </td>
         <td><strong>{{ '%.2f'|format(c.total) }}</strong></td>
       </tr>
       {% endfor %}
       <tr>
-        <td colspan="4" style="text-align:right">Total Bill</td>
+        <td style="text-align:right"><strong>Totals</strong></td>
+        <td><strong>{{ '%.2f'|format(bill.electricity_amount) }}</strong></td>
+        <td><strong>{{ '%.2f'|format(bill.water_amount) }}</strong></td>
+        <td><strong>{{ '%.2f'|format(bill.internet_amount) }}</strong></td>
         <td><strong>{{ '%.2f'|format(total_bill) }}</strong></td>
+      </tr>
+      <tr>
+        <td colspan="5" class="muted"><small>Legend: <span class="badge">E</span>/<span class="badge">W</span>/<span class="badge">I</span> = component zeroed and redistributed; <span class="badge">R</span> = custom redistribution rule applied.</small></td>
       </tr>
     </tbody>
   </table>
+  {% set ns = namespace(any_rules=false) %}
+  {% for c in contributions %}
+    {% set adj = adjustments.get(c.participant.id) or {} %}
+    {% if adj.get('redis_electricity') or adj.get('redis_water') or adj.get('redis_internet') %}
+      {% set ns.any_rules = true %}
+    {% endif %}
+  {% endfor %}
+  {% if ns.any_rules %}
+    <div class="muted"><small>
+      Custom rules present for:
+      {% for c in contributions %}
+        {% set adj = adjustments.get(c.participant.id) or {} %}
+        {% set parts = [] %}
+        {% if adj.get('redis_electricity') %}{% set _ = parts.append('E') %}{% endif %}
+        {% if adj.get('redis_water') %}{% set _ = parts.append('W') %}{% endif %}
+        {% if adj.get('redis_internet') %}{% set _ = parts.append('I') %}{% endif %}
+        {% if parts %}
+          <span class="badge" title="{{ c.participant.name }}: {{ parts|join('/') }}">{{ c.participant.name }}</span>
+        {% endif %}
+      {% endfor %}
+    </small></div>
+  {% endif %}
 </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  function fmt(n){
+    if (isNaN(n)) return '0.00';
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+  function syncSuffixFor(container, mode){
+    if (!container) return;
+    const spans = container.querySelectorAll('.redis-suffix');
+    spans.forEach(el => { el.textContent = mode === 'percent' ? '%' : (mode === 'amount' ? '₱' : ''); });
+  }
+  function recomputeFor(comp, pid){
+    const modeSel = document.getElementById(`mode_${comp}_${pid}`);
+    if (!modeSel) return;
+    const mode = modeSel.value;
+    // keep suffixes in sync with mode for this block
+    syncSuffixFor(modeSel.closest('.redis-box'), mode);
+    const inputs = document.querySelectorAll(`input[id^=redis_${comp}_${pid}_]`);
+    let sum = 0;
+    inputs.forEach(inp => { const v = parseFloat(inp.value); if (!isNaN(v)) sum += v; });
+    const holder = document.querySelector(`[data-redis-summary='${comp}-${pid}'] small`);
+    if (!holder) return;
+    if (mode === 'percent') {
+      holder.textContent = `Sum: ${fmt(sum)}% (needs 100%)`;
+      holder.style.color = Math.abs(sum - 100) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
+    } else if (mode === 'amount') {
+      let base = 0;
+      try {
+        if (comp === 'electricity') {
+          base = parseFloat((window.baseElectricityMap||{})[pid] || 0);
+        } else if (comp === 'water') {
+          base = parseFloat(window.baseWaterShare || 0);
+        } else {
+          base = parseFloat(window.baseInternetShare || 0);
+        }
+      } catch(e) { base = 0; }
+  holder.textContent = `Sum: ₱${fmt(sum)} (needs ₱${fmt(base)})`;
+      holder.style.color = Math.abs(sum - base) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
+    } else {
+      // no mode selected: if any input has value, flag as invalid
+      const anyVal = Array.from(inputs).some(inp => {
+        const v = parseFloat(inp.value);
+        return !isNaN(v) && v > 0;
+      });
+      holder.textContent = anyVal ? 'Select a mode (Percent or Amount)' : '';
+      holder.style.color = anyVal ? 'var(--error-color, #b00020)' : 'var(--muted-color, #666)';
+    }
+  }
+  function wireRow(comp, pid){
+    const modeSel = document.getElementById(`mode_${comp}_${pid}`);
+    if (!modeSel) return;
+    modeSel.addEventListener('change', () => {
+      const mode = modeSel.value;
+      const inputs = document.querySelectorAll(`input[id^=redis_${comp}_${pid}_]`);
+      if (mode === 'amount') {
+        inputs.forEach(inp => { inp.value = '0'; });
+      }
+  // update suffixes inside this block
+      syncSuffixFor(modeSel.closest('.redis-box'), mode);
+      recomputeFor(comp, pid);
+      updateSaveButton();
+    });
+    const inputs = document.querySelectorAll(`input[id^=redis_${comp}_${pid}_]`);
+    inputs.forEach(inp => inp.addEventListener('input', () => { recomputeFor(comp, pid); updateSaveButton(); }));
+    // initial
+    syncSuffixFor(modeSel.closest('.redis-box'), modeSel.value);
+    recomputeFor(comp, pid);
+  }
+  function computeInvalidBoxes(){
+    const invalid = [];
+    document.querySelectorAll('.redis-box').forEach(box => {
+      const sel = box.querySelector('select[id^=mode_]');
+      if (!sel) return;
+      const [__, comp, pid] = sel.id.split('_');
+      const mode = sel.value;
+      const inputs = box.querySelectorAll(`input[id^=redis_${comp}_${pid}_]`);
+      const anyVal = Array.from(inputs).some(inp => { const v = parseFloat(inp.value); return !isNaN(v) && v > 0; });
+      if (!mode && anyVal) {
+        invalid.push({box, comp, pid});
+        return;
+      }
+      let sum = 0;
+      inputs.forEach(inp => { const v = parseFloat(inp.value); if (!isNaN(v)) sum += v; });
+      let base = 0;
+      if (mode === 'amount') {
+        base = comp === 'electricity' ? parseFloat((window.baseElectricityMap||{})[pid] || 0)
+             : comp === 'water' ? parseFloat(window.baseWaterShare || 0)
+             : parseFloat(window.baseInternetShare || 0);
+      }
+      const ok = (mode === 'percent') ? (Math.abs(sum - 100) < 0.01) : (mode === 'amount') ? (Math.abs(sum - base) < 0.01) : true;
+      if (!ok) invalid.push({box, comp, pid});
+    });
+    return invalid;
+  }
+  function updateSaveButton(){
+    const btn = document.getElementById('save-adjustments');
+    if (!btn) return;
+    const invalid = computeInvalidBoxes();
+    btn.disabled = invalid.length > 0;
+    if (btn.disabled) {
+      btn.title = 'Fix redistribution totals highlighted in red';
+    } else {
+      btn.removeAttribute('title');
+    }
+  }
+  // expose bases from server into window for amount mode
+  window.baseElectricityMap = JSON.parse('{{ (base_electricity_map or {})|tojson|safe }}');
+  window.baseWaterShare = JSON.parse('{{ (base_water_share or 0)|tojson|safe }}');
+  window.baseInternetShare = JSON.parse('{{ (base_internet_share or 0)|tojson|safe }}');
+  // wire all visible redis boxes
+  document.addEventListener('DOMContentLoaded', function(){
+    const boxes = document.querySelectorAll('.redis-box');
+    boxes.forEach(box => {
+      const sel = box.querySelector('select[id^=mode_]');
+      if (!sel) return;
+      const [_, comp, pid] = sel.id.split('_');
+      wireRow(comp, pid);
+    });
+    // Toggle panels on small screens
+    document.querySelectorAll('.adj-inline-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-toggle');
+        const panel = document.querySelector(`.adj-collapsed[data-panel='${key}']`);
+        if (panel) {
+          const isHidden = getComputedStyle(panel).display === 'none';
+          panel.style.display = isHidden ? 'block' : 'none';
+        }
+      });
+    });
+    // Prevent submit if any visible row is invalid (but allow Reset button which has formaction)
+    const form = document.getElementById('adjustments-form');
+    if (form) {
+      form.addEventListener('submit', function(e){
+        if (e.submitter && e.submitter.hasAttribute('formaction')) return; // allow reset
+        // validate all visible redis boxes
+        const invalid = computeInvalidBoxes();
+        if (invalid.length > 0) {
+          e.preventDefault();
+          const first = invalid[0];
+          if (first && first.box && first.box.scrollIntoView) first.box.scrollIntoView({behavior: 'smooth', block: 'center'});
+          alert('Please fix redistribution totals highlighted in red before saving.');
+        }
+      });
+    }
+    // initialize save button state
+    updateSaveButton();
+  });
+})();
+</script>
 {% endblock %}

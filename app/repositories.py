@@ -99,7 +99,7 @@ class MeterReadingRepository:
 
 
 class MonthlyAdjustmentRepository:
-    def upsert(self, month_id: int, participant_id: int, zero_electricity: bool, zero_water: bool, zero_internet: bool) -> MonthlyAdjustment:
+    def upsert(self, month_id: int, participant_id: int, zero_electricity: bool, zero_water: bool, zero_internet: bool, redis_electricity=None, redis_water=None, redis_internet=None) -> MonthlyAdjustment:
         adj = MonthlyAdjustment.query.filter_by(month_id=month_id, participant_id=participant_id).first()
         if adj is None:
             adj = MonthlyAdjustment(month_id=month_id, participant_id=participant_id)
@@ -107,6 +107,12 @@ class MonthlyAdjustmentRepository:
         adj.zero_electricity = zero_electricity
         adj.zero_water = zero_water
         adj.zero_internet = zero_internet
+        if redis_electricity is not None:
+            adj.redis_electricity = redis_electricity
+        if redis_water is not None:
+            adj.redis_water = redis_water
+        if redis_internet is not None:
+            adj.redis_internet = redis_internet
         db.session.commit()
         return adj
 

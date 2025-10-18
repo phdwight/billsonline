@@ -105,8 +105,17 @@ def month_detail(bill_id: int):
         'electricity': a.zero_electricity,
         'water': a.zero_water,
         'internet': a.zero_internet,
+        'redis_electricity': a.redis_electricity,
+        'redis_water': a.redis_water,
+        'redis_internet': a.redis_internet,
     } for a in adjust_repo.list_for_month(bill.id)}
     contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
+    # Compute base amounts per component for client-side indicators
+    usage_by_pid = {r.participant_id: r.usage() for r in readings}
+    total_usage = sum(usage_by_pid.values())
+    base_electricity_map = {p.id: ((bill.electricity_amount * (usage_by_pid.get(p.id, 0.0) / total_usage)) if total_usage > 0 else 0.0) for p in participants}
+    base_water_share = (bill.water_amount / len(participants)) if participants else 0.0
+    base_internet_share = (bill.internet_amount / len(participants)) if participants else 0.0
     total_bill = round(bill.electricity_amount + bill.water_amount + bill.internet_amount, 2)
     return render_template(
         "month_detail.html",
@@ -117,6 +126,10 @@ def month_detail(bill_id: int):
         prev_readings_map=prev_readings_map,
         contributions=contributions,
         adjustments=adjustments,
+        participant_name_by_id={p.id: p.name for p in participants},
+        base_electricity_map=base_electricity_map,
+        base_water_share=base_water_share,
+        base_internet_share=base_internet_share,
         total_bill=total_bill,
     )
 
@@ -225,14 +238,25 @@ def export_month_csv(bill_id: int):
         'electricity': a.zero_electricity,
         'water': a.zero_water,
         'internet': a.zero_internet,
+        'redis_electricity': a.redis_electricity,
+        'redis_water': a.redis_water,
+        'redis_internet': a.redis_internet,
     } for a in adjust_repo.list_for_month(bill.id)}
     contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
 
     si = StringIO()
     writer = csv.writer(si)
-    writer.writerow(["Participant", "Electricity", "Water", "Internet", "Total"]) 
+    writer.writerow(["Participant", "Electricity", "Water", "Internet", "Total", "Notes"]) 
     for c in contributions:
-        writer.writerow([c.participant.name, f"{c.electricity:.2f}", f"{c.water:.2f}", f"{c.internet:.2f}", f"{c.total:.2f}"])
+        adj = adjustments.get(c.participant.id) or {}
+        zero_parts = ''.join([ch for ch, key in [( 'E', 'electricity'), ('W','water'), ('I','internet')] if adj.get(key)])
+        custom_parts = ''.join([ch for ch, key in [( 'E', 'redis_electricity'), ('W','redis_water'), ('I','redis_internet')] if adj.get(key)])
+        notes = []
+        if zero_parts:
+            notes.append(f"Zeroed:{zero_parts}")
+        if custom_parts:
+            notes.append(f"Custom:{custom_parts}")
+        writer.writerow([c.participant.name, f"{c.electricity:.2f}", f"{c.water:.2f}", f"{c.internet:.2f}", f"{c.total:.2f}", ' '.join(notes)])
     total_bill = bill.electricity_amount + bill.water_amount + bill.internet_amount
     writer.writerow([])
     writer.writerow(["Total Bill", f"{bill.electricity_amount:.2f}", f"{bill.water_amount:.2f}", f"{bill.internet_amount:.2f}", f"{total_bill:.2f}"])
@@ -258,20 +282,32 @@ def export_month_xlsx(bill_id: int):
         'electricity': a.zero_electricity,
         'water': a.zero_water,
         'internet': a.zero_internet,
+        'redis_electricity': a.redis_electricity,
+        'redis_water': a.redis_water,
+        'redis_internet': a.redis_internet,
     } for a in adjust_repo.list_for_month(bill.id)}
     contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
 
     wb = Workbook()
     ws = wb.active
     ws.title = f"{bill.year}-{bill.month:02d}"
-    ws.append(["Participant", "Electricity", "Water", "Internet", "Total"]) 
+    ws.append(["Participant", "Electricity", "Water", "Internet", "Total", "Notes"]) 
     for c in contributions:
+        adj = adjustments.get(c.participant.id) or {}
+        zero_parts = ''.join([ch for ch, key in [( 'E', 'electricity'), ('W','water'), ('I','internet')] if adj.get(key)])
+        custom_parts = ''.join([ch for ch, key in [( 'E', 'redis_electricity'), ('W','redis_water'), ('I','redis_internet')] if adj.get(key)])
+        notes = []
+        if zero_parts:
+            notes.append(f"Zeroed:{zero_parts}")
+        if custom_parts:
+            notes.append(f"Custom:{custom_parts}")
         ws.append([
             c.participant.name,
             float(f"{c.electricity:.2f}"),
             float(f"{c.water:.2f}"),
             float(f"{c.internet:.2f}"),
             float(f"{c.total:.2f}"),
+            ' '.join(notes),
         ])
     total_bill = bill.electricity_amount + bill.water_amount + bill.internet_amount
     ws.append([])
@@ -315,11 +351,103 @@ def save_adjustments(bill_id: int):
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
     participants = participants_repo.list_all()
+    # Build base amounts per component for validation
+    readings = reading_repo.list_for_month(bill.id)
+    usage_by_pid = {r.participant_id: r.usage() for r in readings}
+    total_usage = sum(usage_by_pid.values())
+    elec_base = {p.id: ((bill.electricity_amount * (usage_by_pid.get(p.id, 0.0) / total_usage)) if total_usage > 0 else 0.0) for p in participants}
+    water_share = (bill.water_amount / len(participants)) if participants else 0.0
+    internet_share = (bill.internet_amount / len(participants)) if participants else 0.0
+    water_base = {p.id: water_share for p in participants}
+    internet_base = {p.id: internet_share for p in participants}
+
+    def validate_rule(component: str, zpid: int, rule: dict | None) -> tuple[bool, str | None]:
+        if not rule or not isinstance(rule, dict):
+            return True, None  # nothing to validate
+        mode = rule.get('mode')
+        targets = rule.get('targets') or {}
+        # Resolve base for this participant/component
+        if component == 'electricity':
+            base_amount = elec_base.get(zpid, 0.0)
+        elif component == 'water':
+            base_amount = water_base.get(zpid, 0.0)
+        else:
+            base_amount = internet_base.get(zpid, 0.0)
+        try:
+            values = [float(v) for v in targets.values()]
+        except (TypeError, ValueError):
+            values = []
+        if mode == 'percent':
+            total_pct = sum(values)
+            if abs(total_pct - 100.0) > 0.01:
+                return False, f"{component.title()} redistribution for {zpid} must total 100%, got {total_pct:.2f}%"
+        elif mode == 'amount':
+            total_amt = sum(values)
+            if abs(total_amt - float(base_amount)) > 0.01:
+                return False, f"{component.title()} redistribution for {zpid} must total {base_amount:.2f}, got {total_amt:.2f}"
+        return True, None
     for p in participants:
         ze = f"adj_electricity_{p.id}" in request.form
         zw = f"adj_water_{p.id}" in request.form
         zi = f"adj_internet_{p.id}" in request.form
-        adjust_repo.upsert(bill.id, p.id, zero_electricity=ze, zero_water=zw, zero_internet=zi)
+
+        def parse_rule(component: str):
+            mode = request.form.get(f"mode_{component}_{p.id}")
+            if mode not in ("percent", "amount"):
+                return None
+            targets: dict[int, float] = {}
+            for t in participants:
+                if t.id == p.id:
+                    continue
+                key = f"redis_{component}_{p.id}_{t.id}"
+                raw = request.form.get(key)
+                if raw is None or raw == "":
+                    continue
+                try:
+                    val = float(raw)
+                except ValueError:
+                    continue
+                if val > 0:
+                    targets[t.id] = val
+            if not targets:
+                return None
+            return {"mode": mode, "targets": targets}
+
+        re_rule = parse_rule("electricity")
+        rw_rule = parse_rule("water")
+        ri_rule = parse_rule("internet")
+        # Validate rules: percent must sum to 100; amount must equal base amount for the zeroed participant
+        re_valid, re_err = (True, None)
+        rw_valid, rw_err = (True, None)
+        ri_valid, ri_err = (True, None)
+        if ze and re_rule:
+            re_valid, re_err = validate_rule('electricity', p.id, re_rule)
+        if zw and rw_rule:
+            rw_valid, rw_err = validate_rule('water', p.id, rw_rule)
+        if zi and ri_rule:
+            ri_valid, ri_err = validate_rule('internet', p.id, ri_rule)
+        # Emit errors and drop invalid rules (keep zero flag so leftover splits equally)
+        if re_err:
+            flash(re_err.replace(str(p.id), p.name), "error")
+        if rw_err:
+            flash(rw_err.replace(str(p.id), p.name), "error")
+        if ri_err:
+            flash(ri_err.replace(str(p.id), p.name), "error")
+        # Only persist valid rules, else store None so DB clears them
+        re_payload = re_rule if (ze and re_rule and re_valid) else None
+        rw_payload = rw_rule if (zw and rw_rule and rw_valid) else None
+        ri_payload = ri_rule if (zi and ri_rule and ri_valid) else None
+
+        adjust_repo.upsert(
+            bill.id,
+            p.id,
+            zero_electricity=ze,
+            zero_water=zw,
+            zero_internet=zi,
+            redis_electricity=re_payload,
+            redis_water=rw_payload,
+            redis_internet=ri_payload,
+        )
     flash("Adjustments saved", "info")
     return redirect(url_for("main.month_detail", bill_id=bill.id))
 
