@@ -62,6 +62,10 @@ class MonthlyAdjustment(db.Model):
     zero_electricity = db.Column(db.Boolean, default=False, nullable=False)
     zero_water = db.Column(db.Boolean, default=False, nullable=False)
     zero_internet = db.Column(db.Boolean, default=False, nullable=False)
+    # Optional redistribution rules per component: {"mode": "percent"|"amount", "targets": {participant_id: value, ...}}
+    redis_electricity = db.Column(db.JSON, nullable=True)
+    redis_water = db.Column(db.JSON, nullable=True)
+    redis_internet = db.Column(db.JSON, nullable=True)
 
     month = db.relationship("MonthlyBill")
     participant = db.relationship("Participant")
