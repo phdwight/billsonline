@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Edit Month {{ bill.year }}-{{ '%02d'|format(bill.month) }}</h2>
+
+<form method="post">
+  {{ form.csrf_token }}
+  <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}</label>
+  <label>Water Amount {{ form.water_amount(step='0.01', required=True) }}</label>
+  <label>Internet Amount {{ form.internet_amount(step='0.01', required=True) }}</label>
+  <button type="submit">Save</button>
+  <a href="{{ url_for('main.month_detail', bill_id=bill.id) }}">Cancel</a>
+</form>
+{% endblock %}
