@@ -89,6 +89,8 @@ button, .btn { cursor:pointer; border:none; border-radius: 8px; padding: .55rem 
 .btn-danger:hover { filter: brightness(0.95); }
 .btn-link { color: #93c5fd; }
 .muted { color: var(--muted); }
+.field-error { color: var(--error); display:block; margin-top:.25rem; }
+.adj-toggle-icon { display:inline-block; width: 1em; text-align:center; }
 
 table { border-collapse: collapse; width: 100%; border-radius: 8px; overflow: hidden; }
 th, td { border-bottom: 1px solid var(--border); padding: .6rem .6rem; }

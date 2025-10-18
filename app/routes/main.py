@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from sqlalchemy.exc import IntegrityError
 from datetime import date
 import csv
 from io import StringIO
@@ -73,15 +74,19 @@ def add_participant():
 @bp.post("/months")
 def add_month():
     form = MonthForm()
+    # Enable duplicate check inside the form
+    form.check_duplicates = True
     if not form.validate_on_submit():
         flash("Please correct the errors in the form", "error")
         return redirect(url_for("main.index"))
     year = int(form.year.data)
     month = int(form.month.data)
-    if bill_repo.find_by_year_month(year, month):
-        flash("That month already exists", "error")
+    try:
+        bill_repo.create(year, month, float(form.electricity_amount.data), float(form.water_amount.data), float(form.internet_amount.data))
+    except IntegrityError:
+        db.session.rollback()
+        flash(f"A month for {year}-{month:02d} already exists.", "error")
         return redirect(url_for("main.index"))
-    bill_repo.create(year, month, float(form.electricity_amount.data), float(form.water_amount.data), float(form.internet_amount.data))
     flash("Month created", "info")
     return redirect(url_for("main.index"))
 
@@ -140,6 +145,9 @@ def edit_month(bill_id: int):
     if not bill:
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to edit amounts.", "error")
+        return redirect(url_for("main.month_detail", bill_id=bill_id))
     form = MonthForm()
     form.year.data = bill.year
     form.month.data = bill.month
@@ -155,6 +163,9 @@ def update_month(bill_id: int):
     if not bill:
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("main.month_detail", bill_id=bill_id))
     form = MonthForm()
     # Year/month are not editable post-creation; enforce hidden or ignore
     if not form.validate_on_submit():
@@ -196,7 +207,8 @@ def export_all_csv():
     writer.writerow(["Year", "Month", "Electricity", "Water", "Internet", "Total"]) 
     for m in months:
         total = m.electricity_amount + m.water_amount + m.internet_amount
-        writer.writerow([m.year, m.month, f"{m.electricity_amount:.2f}", f"{m.water_amount:.2f}", f"{m.internet_amount:.2f}", f"{total:.2f}"])
+        month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+        writer.writerow([m.year, month_names[m.month-1], f"{m.electricity_amount:.2f}", f"{m.water_amount:.2f}", f"{m.internet_amount:.2f}", f"{total:.2f}"])
     output = si.getvalue()
     return Response(output, mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=months.csv"})
 
@@ -211,7 +223,8 @@ def export_all_xlsx():
     ws.append(["Year", "Month", "Electricity", "Water", "Internet", "Total"])
     for m in months:
         total = m.electricity_amount + m.water_amount + m.internet_amount
-        ws.append([m.year, m.month, float(m.electricity_amount), float(m.water_amount), float(m.internet_amount), float(total)])
+        month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+        ws.append([m.year, month_names[m.month-1], float(m.electricity_amount), float(m.water_amount), float(m.internet_amount), float(total)])
     from io import BytesIO
     bio = BytesIO()
     wb.save(bio)
@@ -262,7 +275,8 @@ def export_month_csv(bill_id: int):
     writer.writerow(["Total Bill", f"{bill.electricity_amount:.2f}", f"{bill.water_amount:.2f}", f"{bill.internet_amount:.2f}", f"{total_bill:.2f}"])
 
     output = si.getvalue()
-    filename = f"bill_{bill.year}-{bill.month:02d}.csv"
+    month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+    filename = f"bill_{bill.year}-{month_names[bill.month-1]}.csv"
     return Response(
         output,
         mimetype="text/csv",
@@ -290,7 +304,8 @@ def export_month_xlsx(bill_id: int):
 
     wb = Workbook()
     ws = wb.active
-    ws.title = f"{bill.year}-{bill.month:02d}"
+    month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+    ws.title = f"{bill.year}-{month_names[bill.month-1]}"
     ws.append(["Participant", "Electricity", "Water", "Internet", "Total", "Notes"]) 
     for c in contributions:
         adj = adjustments.get(c.participant.id) or {}
@@ -317,7 +332,7 @@ def export_month_xlsx(bill_id: int):
     bio = BytesIO()
     wb.save(bio)
     bio.seek(0)
-    filename = f"bill_{bill.year}-{bill.month:02d}.xlsx"
+    filename = f"bill_{bill.year}-{month_names[bill.month-1]}.xlsx"
     return Response(
         bio.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -331,6 +346,9 @@ def submit_readings(bill_id: int):
     if not bill:
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("main.month_detail", bill_id=bill.id))
 
     # Expect form fields like current_<pid> and previous_<pid>
     for key, value in request.form.items():
@@ -350,6 +368,9 @@ def save_adjustments(bill_id: int):
     if not bill:
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("main.month_detail", bill_id=bill.id))
     participants = participants_repo.list_all()
     # Build base amounts per component for validation
     readings = reading_repo.list_for_month(bill.id)
@@ -458,6 +479,9 @@ def reset_adjustments(bill_id: int):
     if not bill:
         flash("Month not found", "error")
         return redirect(url_for("main.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("main.month_detail", bill_id=bill.id))
     adjust_repo.clear_for_month(bill.id)
     flash("All adjustments cleared", "info")
     return redirect(url_for("main.month_detail", bill_id=bill.id))

@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2 class="section-title">Edit Month {{ bill.year }}-{{ '%02d'|format(bill.month) }}</h2>
+  {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+  <h2 class="section-title">Edit Month {{ bill.year }}-{{ month_names[bill.month-1] }}</h2>
   <form method="post" class="stack">
     {{ form.csrf_token }}
     <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}</label>

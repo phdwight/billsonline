@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-<h2 class="section-title">Month {{ bill.year }}-{{ '%02d'|format(bill.month) }}</h2>
+{% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+<h2 class="section-title">Month {{ bill.year }}-{{ month_names[bill.month-1] }} {% if bill.archived %}<span class="badge" title="Archived">Archived</span>{% endif %}</h2>
 
 <p>
+  {% if not bill.archived %}
   <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
+  {% endif %}
   <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export CSV</a>
   <a class="btn btn-secondary" href="{{ url_for('main.export_month_xlsx', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export Excel</a>
   <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to months</a>
@@ -13,6 +16,30 @@
 
 <section style="margin-top: var(--gap);">
   <h3>Enter Meter Readings</h3>
+  {% if bill.archived %}
+  <div class="muted"><small>This month is archived. Readings cannot be changed.</small></div>
+  <table class="adj-table">
+      <thead>
+        <tr class="adj-row">
+          <th>Participant</th>
+          <th>Previous</th>
+          <th>Current</th>
+          <th>Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        {% set r = readings_by_pid.get(p.id) %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id)) if prev_readings_map is defined else (r.reading_previous if r else '') }}</td>
+          <td>{{ r.reading_current if r else '' }}</td>
+          <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
   <form method="post" action="{{ url_for('main.submit_readings', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="adj-table">
@@ -41,6 +68,7 @@
     </table>
   <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Readings</button>
   </form>
+  {% endif %}
   </section>
 
 <section class="card" style="margin-top: var(--gap);">
@@ -48,6 +76,87 @@
   <p class="muted" style="margin-top:.25rem;"><small>
     Tip: You can exclude someone from any bill by zeroing that component for them in the Adjustments section.
   </small></p>
+  {% if bill.archived %}
+  <div class="muted"><small>This month is archived. Adjustments cannot be changed.</small></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Participant</th>
+        <th>Zero Electricity</th>
+        <th>Electricity Redistribution</th>
+        <th>Zero Water</th>
+        <th>Water Redistribution</th>
+        <th>Zero Internet</th>
+        <th>Internet Redistribution</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in participants %}
+      {% set flags = adjustments.get(p.id, {}) %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{% if flags.get('electricity') %}Yes{% else %}No{% endif %}</td>
+        <td>
+          {% set rule = flags.get('redis_electricity') %}
+          {% if rule %}
+            {% if rule.get('mode') == 'percent' %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+              Percent: {{ parts|join(', ') }}
+            {% else %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+              Amount: {{ parts|join(', ') }}
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>{% if flags.get('water') %}Yes{% else %}No{% endif %}</td>
+        <td>
+          {% set rule = flags.get('redis_water') %}
+          {% if rule %}
+            {% if rule.get('mode') == 'percent' %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+              Percent: {{ parts|join(', ') }}
+            {% else %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+              Amount: {{ parts|join(', ') }}
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>{% if flags.get('internet') %}Yes{% else %}No{% endif %}</td>
+        <td>
+          {% set rule = flags.get('redis_internet') %}
+          {% if rule %}
+            {% if rule.get('mode') == 'percent' %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ (v ~ '%')) %}
+              {% endfor %}
+              Percent: {{ parts|join(', ') }}
+            {% else %}
+              {% set parts = [] %}
+              {% for k,v in (rule.get('targets') or {}).items() %}
+                {% set _ = parts.append((participant_name_by_id.get(k) or participant_name_by_id.get(k|string) or k|string) ~ ':' ~ ('%.2f'|format(v|float))) %}
+              {% endfor %}
+              Amount: {{ parts|join(', ') }}
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
   <form id="adjustments-form" method="post" action="{{ url_for('main.save_adjustments', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <table>
@@ -55,11 +164,11 @@
         <tr>
           <th>Participant</th>
           <th>Zero Electricity</th>
-          <th>Electricity Redistribution</th>
+          <th>Electricity Redistribution <button type="button" class="linklike adj-header-toggle" data-comp="electricity" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
           <th>Zero Water</th>
-          <th>Water Redistribution</th>
+          <th>Water Redistribution <button type="button" class="linklike adj-header-toggle" data-comp="water" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
           <th>Zero Internet</th>
-          <th>Internet Redistribution</th>
+          <th>Internet Redistribution <button type="button" class="linklike adj-header-toggle" data-comp="internet" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
         </tr>
       </thead>
       <tbody>
@@ -69,13 +178,12 @@
           <td>{{ p.name }}</td>
           <td>
             <input type="checkbox" name="adj_electricity_{{ p.id }}" {% if flags.get('electricity') %}checked{% endif %}>
-            <button type="button" class="linklike adj-inline-toggle" data-toggle="elec-{{ p.id }}">Details</button>
           </td>
           <td>
             {% set comp = 'electricity' %}
             {% set rule = flags.get('redis_' ~ comp) or {} %}
             {% if flags.get('electricity') %}
-            <div class="redis-box adj-collapsed" data-panel="elec-{{ p.id }}">
+            <div class="redis-box adj-collapsed" data-panel="elec-{{ p.id }}" data-comp="electricity" style="display:none;">
               <div style="display:flex; gap:.25rem; align-items:center;">
                 <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
                 <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
@@ -106,13 +214,12 @@
           </td>
           <td>
             <input type="checkbox" name="adj_water_{{ p.id }}" {% if flags.get('water') %}checked{% endif %}>
-            <button type="button" class="linklike adj-inline-toggle" data-toggle="water-{{ p.id }}">Details</button>
           </td>
           <td>
             {% set comp = 'water' %}
             {% set rule = flags.get('redis_' ~ comp) or {} %}
             {% if flags.get('water') %}
-            <div class="redis-box adj-collapsed" data-panel="water-{{ p.id }}">
+            <div class="redis-box adj-collapsed" data-panel="water-{{ p.id }}" data-comp="water" style="display:none;">
               <div style="display:flex; gap:.25rem; align-items:center;">
                 <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
                 <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
@@ -143,13 +250,12 @@
           </td>
           <td>
             <input type="checkbox" name="adj_internet_{{ p.id }}" {% if flags.get('internet') %}checked{% endif %}>
-            <button type="button" class="linklike adj-inline-toggle" data-toggle="inet-{{ p.id }}">Details</button>
           </td>
           <td>
             {% set comp = 'internet' %}
             {% set rule = flags.get('redis_' ~ comp) or {} %}
             {% if flags.get('internet') %}
-            <div class="redis-box adj-collapsed" data-panel="inet-{{ p.id }}">
+            <div class="redis-box adj-collapsed" data-panel="inet-{{ p.id }}" data-comp="internet" style="display:none;">
               <div style="display:flex; gap:.25rem; align-items:center;">
                 <label for="mode_{{ comp }}_{{ p.id }}"><small>{{ comp.title() }} mode</small></label>
                 <select name="mode_{{ comp }}_{{ p.id }}" id="mode_{{ comp }}_{{ p.id }}">
@@ -189,6 +295,7 @@
       </button>
     </div>
   </form>
+  {% endif %}
 </section>
 
 <section class="card" style="margin-top: var(--gap);">
@@ -421,6 +528,8 @@
   window.baseElectricityMap = JSON.parse('{{ (base_electricity_map or {})|tojson|safe }}');
   window.baseWaterShare = JSON.parse('{{ (base_water_share or 0)|tojson|safe }}');
   window.baseInternetShare = JSON.parse('{{ (base_internet_share or 0)|tojson|safe }}');
+  // expose bill id for localStorage scoping
+  window.billId = JSON.parse('{{ (bill.id)|tojson|safe }}');
   // wire all visible redis boxes
   document.addEventListener('DOMContentLoaded', function(){
     const boxes = document.querySelectorAll('.redis-box');
@@ -430,17 +539,43 @@
       const [_, comp, pid] = sel.id.split('_');
       wireRow(comp, pid);
     });
-    // Toggle panels on small screens
-    document.querySelectorAll('.adj-inline-toggle').forEach(btn => {
+    function setHeaderIcon(comp, open){
+      const btn = document.querySelector(`.adj-header-toggle[data-comp='${comp}']`);
+      if (!btn) return;
+      const icon = btn.querySelector('.adj-toggle-icon');
+      if (icon) icon.textContent = open ? '▾' : '▸';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    // Header-level toggles to show/hide all details per component (persist to localStorage)
+    document.querySelectorAll('.adj-header-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
-        const key = btn.getAttribute('data-toggle');
-        const panel = document.querySelector(`.adj-collapsed[data-panel='${key}']`);
-        if (panel) {
-          const isHidden = getComputedStyle(panel).display === 'none';
-          panel.style.display = isHidden ? 'block' : 'none';
-        }
+        const comp = btn.getAttribute('data-comp');
+        const panels = document.querySelectorAll(`.redis-box[data-comp='${comp}']`);
+        const anyVisible = Array.from(panels).some(p => getComputedStyle(p).display !== 'none');
+        const nextShow = !anyVisible;
+        panels.forEach(p => { p.style.display = nextShow ? 'block' : 'none'; });
+        try {
+          const key = `adj-details-${comp}-${window.billId}`;
+          localStorage.setItem(key, nextShow ? 'open' : 'closed');
+        } catch(e) {}
+        setHeaderIcon(comp, nextShow);
       });
     });
+
+    // Restore persisted visibility state per component
+    (function restorePanels(){
+      const comps = ['electricity','water','internet'];
+      comps.forEach(comp => {
+        try {
+          const key = `adj-details-${comp}-${window.billId}`;
+          const state = localStorage.getItem(key) || 'closed';
+          const show = state === 'open';
+          const panels = document.querySelectorAll(`.redis-box[data-comp='${comp}']`);
+          panels.forEach(p => { p.style.display = show ? 'block' : 'none'; });
+          setHeaderIcon(comp, show);
+        } catch(e) {}
+      });
+    })();
     // Prevent submit if any visible row is invalid (but allow Reset button which has formaction)
     const form = document.getElementById('adjustments-form');
     if (form) {
