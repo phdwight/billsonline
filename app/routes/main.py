@@ -246,6 +246,49 @@ def export_month_csv(bill_id: int):
     )
 
 
+@bp.get("/months/<int:bill_id>/export.xlsx")
+def export_month_xlsx(bill_id: int):
+    bill = bill_repo.get_by_id(bill_id)
+    if not bill:
+        flash("Month not found", "error")
+        return redirect(url_for("main.index"))
+    participants = participants_repo.list_all()
+    readings = reading_repo.list_for_month(bill.id)
+    adjustments = {a.participant_id: {
+        'electricity': a.zero_electricity,
+        'water': a.zero_water,
+        'internet': a.zero_internet,
+    } for a in adjust_repo.list_for_month(bill.id)}
+    contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"{bill.year}-{bill.month:02d}"
+    ws.append(["Participant", "Electricity", "Water", "Internet", "Total"]) 
+    for c in contributions:
+        ws.append([
+            c.participant.name,
+            float(f"{c.electricity:.2f}"),
+            float(f"{c.water:.2f}"),
+            float(f"{c.internet:.2f}"),
+            float(f"{c.total:.2f}"),
+        ])
+    total_bill = bill.electricity_amount + bill.water_amount + bill.internet_amount
+    ws.append([])
+    ws.append(["Total Bill", float(f"{bill.electricity_amount:.2f}"), float(f"{bill.water_amount:.2f}"), float(f"{bill.internet_amount:.2f}"), float(f"{total_bill:.2f}")])
+
+    from io import BytesIO
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    filename = f"bill_{bill.year}-{bill.month:02d}.xlsx"
+    return Response(
+        bio.getvalue(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @bp.post("/months/<int:bill_id>/readings")
 def submit_readings(bill_id: int):
     bill = bill_repo.get_by_id(bill_id)
