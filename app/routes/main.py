@@ -8,7 +8,7 @@ from openpyxl import Workbook
 
 from ..extensions import db
 from ..models import Participant
-from ..repositories import ParticipantRepository, MonthlyBillRepository, MeterReadingRepository
+from ..repositories import ParticipantRepository, MonthlyBillRepository, MeterReadingRepository, MonthlyAdjustmentRepository
 from ..services import BillCalculator
 from ..forms import MonthForm
 
@@ -17,6 +17,7 @@ bp = Blueprint("main", __name__)
 participants_repo = ParticipantRepository()
 bill_repo = MonthlyBillRepository()
 reading_repo = MeterReadingRepository()
+adjust_repo = MonthlyAdjustmentRepository()
 calculator = BillCalculator()
 
 
@@ -43,7 +44,6 @@ def participants_page():
 @bp.post("/participants/<int:pid>/update")
 def update_participant(pid: int):
     name = request.form.get("name", "").strip()
-    include_in_internet = request.form.get("include_in_internet") == "on"
     if not name:
         flash("Participant name is required", "error")
         return redirect(url_for("main.participants_page"))
@@ -52,7 +52,7 @@ def update_participant(pid: int):
     if existing:
         flash("Another participant already has that name", "error")
         return redirect(url_for("main.participants_page"))
-    participants_repo.update(pid, name, include_in_internet)
+    participants_repo.update(pid, name)
     flash("Participant updated", "info")
     return redirect(url_for("main.participants_page"))
 
@@ -60,19 +60,14 @@ def update_participant(pid: int):
 @bp.post("/participants")
 def add_participant():
     name = request.form.get("name", "").strip()
-    include_in_internet = request.form.get("include_in_internet") == "on"
     if not name:
         flash("Name is required", "error")
     else:
-        participants_repo.add(name=name, include_in_internet=include_in_internet)
+        participants_repo.add(name=name)
     return redirect(url_for("main.index"))
 
 
-@bp.post("/participants/<int:pid>/internet")
-def toggle_internet(pid: int):
-    include = request.form.get("include") == "on"
-    participants_repo.set_internet_include(pid, include)
-    return redirect(url_for("main.index"))
+# Removed internet toggle; use adjustments instead
 
 
 @bp.post("/months")
@@ -106,7 +101,12 @@ def month_detail(bill_id: int):
     if prev_bill:
         prev_readings = reading_repo.list_for_month(prev_bill.id)
         prev_readings_map = {r.participant_id: r.reading_current for r in prev_readings}
-    contributions = calculator.compute_contributions(bill, readings, participants)
+    adjustments = {a.participant_id: {
+        'electricity': a.zero_electricity,
+        'water': a.zero_water,
+        'internet': a.zero_internet,
+    } for a in adjust_repo.list_for_month(bill.id)}
+    contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
     total_bill = round(bill.electricity_amount + bill.water_amount + bill.internet_amount, 2)
     return render_template(
         "month_detail.html",
@@ -116,6 +116,7 @@ def month_detail(bill_id: int):
         readings_by_pid=readings_by_pid,
         prev_readings_map=prev_readings_map,
         contributions=contributions,
+        adjustments=adjustments,
         total_bill=total_bill,
     )
 
@@ -220,7 +221,12 @@ def export_month_csv(bill_id: int):
         return redirect(url_for("main.index"))
     participants = participants_repo.list_all()
     readings = reading_repo.list_for_month(bill.id)
-    contributions = calculator.compute_contributions(bill, readings, participants)
+    adjustments = {a.participant_id: {
+        'electricity': a.zero_electricity,
+        'water': a.zero_water,
+        'internet': a.zero_internet,
+    } for a in adjust_repo.list_for_month(bill.id)}
+    contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
 
     si = StringIO()
     writer = csv.writer(si)
@@ -256,4 +262,31 @@ def submit_readings(bill_id: int):
             prev_val = float(prev_val_raw) if prev_val_raw not in (None, "") else None
             reading_repo.upsert(bill.id, pid, current_val, prev_val)
 
+    return redirect(url_for("main.month_detail", bill_id=bill.id))
+
+
+@bp.post("/months/<int:bill_id>/adjustments")
+def save_adjustments(bill_id: int):
+    bill = bill_repo.get_by_id(bill_id)
+    if not bill:
+        flash("Month not found", "error")
+        return redirect(url_for("main.index"))
+    participants = participants_repo.list_all()
+    for p in participants:
+        ze = f"adj_electricity_{p.id}" in request.form
+        zw = f"adj_water_{p.id}" in request.form
+        zi = f"adj_internet_{p.id}" in request.form
+        adjust_repo.upsert(bill.id, p.id, zero_electricity=ze, zero_water=zw, zero_internet=zi)
+    flash("Adjustments saved", "info")
+    return redirect(url_for("main.month_detail", bill_id=bill.id))
+
+
+@bp.post("/months/<int:bill_id>/adjustments/reset")
+def reset_adjustments(bill_id: int):
+    bill = bill_repo.get_by_id(bill_id)
+    if not bill:
+        flash("Month not found", "error")
+        return redirect(url_for("main.index"))
+    adjust_repo.clear_for_month(bill.id)
+    flash("All adjustments cleared", "info")
     return redirect(url_for("main.month_detail", bill_id=bill.id))

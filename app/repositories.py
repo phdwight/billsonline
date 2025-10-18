@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 from .extensions import db
-from .models import Participant, MonthlyBill, MeterReading
+from .models import Participant, MonthlyBill, MeterReading, MonthlyAdjustment
 
 
 class ParticipantRepository:
-    def add(self, name: str, include_in_internet: bool = True) -> Participant:
-        p = Participant(name=name, include_in_internet=include_in_internet)
+    def add(self, name: str) -> Participant:
+        p = Participant(name=name)
         db.session.add(p)
         db.session.commit()
         return p
@@ -19,15 +19,9 @@ class ParticipantRepository:
     def get(self, participant_id: int) -> Optional[Participant]:
         return Participant.query.get(participant_id)
 
-    def set_internet_include(self, participant_id: int, include: bool) -> None:
-        p = Participant.query.get_or_404(participant_id)
-        p.include_in_internet = include
-        db.session.commit()
-
-    def update(self, participant_id: int, name: str, include_in_internet: bool) -> Participant:
+    def update(self, participant_id: int, name: str) -> Participant:
         p = Participant.query.get_or_404(participant_id)
         p.name = name
-        p.include_in_internet = include_in_internet
         db.session.commit()
         return p
 
@@ -102,3 +96,23 @@ class MeterReadingRepository:
 
     def list_for_month(self, month_id: int) -> list[MeterReading]:
         return MeterReading.query.filter_by(month_id=month_id).all()
+
+
+class MonthlyAdjustmentRepository:
+    def upsert(self, month_id: int, participant_id: int, zero_electricity: bool, zero_water: bool, zero_internet: bool) -> MonthlyAdjustment:
+        adj = MonthlyAdjustment.query.filter_by(month_id=month_id, participant_id=participant_id).first()
+        if adj is None:
+            adj = MonthlyAdjustment(month_id=month_id, participant_id=participant_id)
+            db.session.add(adj)
+        adj.zero_electricity = zero_electricity
+        adj.zero_water = zero_water
+        adj.zero_internet = zero_internet
+        db.session.commit()
+        return adj
+
+    def list_for_month(self, month_id: int) -> list[MonthlyAdjustment]:
+        return MonthlyAdjustment.query.filter_by(month_id=month_id).all()
+
+    def clear_for_month(self, month_id: int) -> None:
+        MonthlyAdjustment.query.filter_by(month_id=month_id).delete()
+        db.session.commit()
