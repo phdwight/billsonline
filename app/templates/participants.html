@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+<h2 class="section-title">Participants</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Included in Internet</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in participants %}
+    <tr>
+      <form method="post" action="{{ url_for('main.update_participant', pid=p.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <td>
+          <input name="name" value="{{ p.name }}" required>
+        </td>
+        <td>
+          <input type="checkbox" name="include_in_internet" {% if p.include_in_internet %}checked{% endif %}>
+        </td>
+        <td>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </td>
+      </form>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p style="margin-top:.75rem;"><a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back</a></p>
+</div>
+{% endblock %}

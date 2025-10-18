@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="grid">
+    <div class="card">
+      <h2 class="section-title">Participants</h2>
+      <form method="post" action="{{ url_for('main.add_participant') }}" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+          Name
+          <input name="name" placeholder="e.g., Alice" required>
+        </label>
+        <label>
+          <span>Included in Internet</span>
+          <input type="checkbox" name="include_in_internet" checked>
+        </label>
+        <button class="btn btn-primary" type="submit">Add Participant</button>
+      </form>
+      <ul>
+        {% for p in participants %}
+        <li>
+          {{ p.name }}
+          <form method="post" action="{{ url_for('main.toggle_internet', pid=p.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="include" value="{{ 'on' if not p.include_in_internet else '' }}">
+            <button type="submit" class="btn btn-secondary">{{ 'Include in Internet' if not p.include_in_internet else 'Exclude from Internet' }}</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">Months</h2>
+      <form method="post" action="{{ url_for('main.add_month') }}" class="stack">
+        {{ form.csrf_token }}
+        <div class="row">
+          <label>Year {{ form.year(min=2000, max=3000, required=True) }}</label>
+          <label>Month {{ form.month(min=1, max=12, required=True) }}</label>
+        </div>
+        <div class="row">
+          <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}</label>
+          <label>Water Amount {{ form.water_amount(step='0.01', required=True) }}</label>
+          <label>Internet Amount {{ form.internet_amount(step='0.01', required=True) }}</label>
+        </div>
+        <button class="btn btn-primary" type="submit">Create Month</button>
+      </form>
+
+      <ul>
+        {% for m in months %}
+        <li>
+          <a href="{{ url_for('main.month_detail', bill_id=m.id) }}">{{ m.year }}-{{ '%02d'|format(m.month) }}</a>
+    <form method="post" action="{{ url_for('main.archive_month', bill_id=m.id) }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-link" type="submit">Archive</button></form>
+          <a href="{{ url_for('main.edit_month', bill_id=m.id) }}" class="muted">Edit</a>
+    <form method="post" action="{{ url_for('main.delete_month', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-link">Delete</button></form>
+          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="muted">CSV</a>
+        </li>
+        {% else %}
+        <li>No months yet</li>
+        {% endfor %}
+      </ul>
+      {% if pagination.pages > 1 %}
+      <nav class="pagination">
+        {% if pagination.has_prev %}<a class="btn btn-secondary" href="?page={{ pagination.prev_num }}">« Prev</a>{% endif %}
+        <span class="muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}<a class="btn btn-secondary" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
+      </nav>
+      {% endif %}
+    </div>
+  </section>
+  <section class="card" style="margin-top: var(--gap);">
+    <a class="btn btn-secondary" href="{{ url_for('main.participants_page') }}">Manage participants</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.archived') }}">Archived months</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.export_all_csv') }}">Export all CSV</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.export_all_xlsx') }}">Export all Excel</a>
+  </section>
+{% endblock %}

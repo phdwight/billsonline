@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+<h2 class="section-title">Month {{ bill.year }}-{{ '%02d'|format(bill.month) }}</h2>
+
+<p>
+  <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}">Edit amounts</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}">Export CSV</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to months</a>
+  
+</p>
+
+<section style="margin-top: var(--gap);">
+  <h3>Enter Meter Readings</h3>
+  <form method="post" action="{{ url_for('main.submit_readings', bill_id=bill.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <table>
+      <thead>
+        <tr>
+          <th>Participant</th>
+          <th>Previous</th>
+          <th>Current</th>
+          <th>Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+  {% set r = readings_by_pid.get(p.id) %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>
+            <input type="number" name="previous_{{ p.id }}" step="0.01"
+                   value="{{ (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id)) if prev_readings_map is defined else (r.reading_previous if r else '') }}">
+          </td>
+          <td><input type="number" name="current_{{ p.id }}" step="0.01" value="{{ r.reading_current if r else '' }}"></td>
+          <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button>Save Readings</button>
+  </form>
+  </section>
+
+<section class="card" style="margin-top: var(--gap);">
+  <h3>Contributions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Participant</th>
+        <th>Electricity</th>
+        <th>Water</th>
+        <th>Internet</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contributions %}
+      <tr>
+        <td>{{ c.participant.name }}</td>
+        <td>{{ '%.2f'|format(c.electricity) }}</td>
+        <td>{{ '%.2f'|format(c.water) }}</td>
+        <td>{{ '%.2f'|format(c.internet) }}</td>
+        <td><strong>{{ '%.2f'|format(c.total) }}</strong></td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="4" style="text-align:right">Total Bill</td>
+        <td><strong>{{ '%.2f'|format(total_bill) }}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+</div>
+{% endblock %}
