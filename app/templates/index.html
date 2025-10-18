@@ -7,7 +7,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>
           Name
-          <input name="name" placeholder="e.g., Alice" required>
+          <input type="text" name="name" placeholder="e.g., Alice" required>
         </label>
         <button class="btn btn-primary" type="submit">Add Participant</button>
       </form>
@@ -40,20 +40,26 @@
         {% for m in months %}
         <li>
           <a href="{{ url_for('main.month_detail', bill_id=m.id) }}">{{ m.year }}-{{ '%02d'|format(m.month) }}</a>
-    <form method="post" action="{{ url_for('main.archive_month', bill_id=m.id) }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-link" type="submit">Archive</button></form>
-          <a href="{{ url_for('main.edit_month', bill_id=m.id) }}" class="muted">Edit</a>
-    <form method="post" action="{{ url_for('main.delete_month', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-link">Delete</button></form>
-          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="muted">CSV</a>
+          <form method="post" action="{{ url_for('main.archive_month', bill_id=m.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-link btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-archive"/></svg>Archive</button>
+          </form>
+          <a href="{{ url_for('main.edit_month', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</a>
+          <form method="post" action="{{ url_for('main.delete_month', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
+          </form>
+          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV</a>
         </li>
         {% else %}
         <li>No months yet</li>
         {% endfor %}
       </ul>
-      {% if pagination.pages > 1 %}
+        {% if pagination.pages > 1 %}
       <nav class="pagination">
-        {% if pagination.has_prev %}<a class="btn btn-secondary" href="?page={{ pagination.prev_num }}">« Prev</a>{% endif %}
+        {% if pagination.has_prev %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.prev_num }}">« Prev</a>{% endif %}
         <span class="muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
-        {% if pagination.has_next %}<a class="btn btn-secondary" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
+        {% if pagination.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
       </nav>
       {% endif %}
     </div>

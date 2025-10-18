@@ -4,9 +4,10 @@
 <h2 class="section-title">Month {{ bill.year }}-{{ '%02d'|format(bill.month) }}</h2>
 
 <p>
-  <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}">Edit amounts</a>
-  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}">Export CSV</a>
-  <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back to months</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export CSV</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.export_month_xlsx', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export Excel</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to months</a>
   
 </p>
 
@@ -38,15 +39,15 @@
         {% endfor %}
       </tbody>
     </table>
-    <button>Save Readings</button>
+  <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Readings</button>
   </form>
   </section>
 
 <section class="card" style="margin-top: var(--gap);">
   <h3>Adjustments (zero and redistribute)</h3>
-  <p class="muted" style="margin-top:.25rem;">
-    Tip: Internet is split among all participants by default. To exclude someone from Internet for this month, check “Zero Internet” next to their name.
-  </p>
+  <p class="muted" style="margin-top:.25rem;"><small>
+    Tip: You can exclude someone from any bill by zeroing that component for them in the Adjustments section.
+  </small></p>
   <form method="post" action="{{ url_for('main.save_adjustments', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <table>
@@ -70,21 +71,20 @@
         {% endfor %}
       </tbody>
     </table>
-    <div style="display:flex; gap:.5rem; align-items:center;">
-      <button class="btn btn-primary" type="submit">Save Adjustments</button>
+    <div style="display:flex; gap:.5rem; align-items:center; flex-wrap: wrap;">
+      <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
+      <button class="btn btn-secondary" type="submit" formaction="{{ url_for('main.reset_adjustments', bill_id=bill.id) }}">
+        <svg class="icon icon-left"><use href="#icon-unarchive"/></svg>Reset all adjustments
+      </button>
     </div>
-  </form>
-  <form method="post" action="{{ url_for('main.reset_adjustments', bill_id=bill.id) }}" style="display:inline; margin:0;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-secondary" type="submit">Reset all adjustments</button>
   </form>
 </section>
 
 <section class="card" style="margin-top: var(--gap);">
   <h3>Contributions</h3>
-  <p class="muted" style="margin-top:.25rem;">
-    Tip: Internet is split among all participants by default. To exclude someone from Internet for this month, use the Adjustments section (Zero Internet).
-  </p>
+  <p class="muted" style="margin-top:.25rem;"><small>
+    Tip: To exclude someone from a specific bill, zero that component for them in the Adjustments section. Zeroed amounts are redistributed to the others.
+  </small></p>
   <table>
     <thead>
       <tr>
