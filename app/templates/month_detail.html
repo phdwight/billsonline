@@ -10,6 +10,12 @@
   {% endif %}
   <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Download contributions <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
   <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to months</a>
+  {% if bill.archived %}
+  <form method="post" action="{{ url_for('main.delete_month', bill_id=bill.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
+  </form>
+  {% endif %}
   
 </p>
 
@@ -208,6 +214,118 @@
   </section>
 
 <section class="card" style="margin-top: var(--gap);">
+  <h3>Per-Component Adjustments</h3>
+  {% if not components %}
+    <div class="muted"><small>No components to adjust.</small></div>
+  {% elif bill.archived %}
+    <div class="muted"><small>This month is archived. Adjustments are view-only.</small></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Participant</th>
+          <th>Mode</th>
+          <th>Targets</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for comp in components %}
+        <tr>
+          <td colspan="4" class="muted"><small><strong>{{ comp.name }}</strong> — {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</small></td>
+        </tr>
+        {% for p in participants %}
+          {% if p.id in member_ids %}
+          {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
+          {% set rule = adj.get('rule') or {} %}
+          <tr>
+            <td>{{ comp.name }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ (rule.get('mode')|capitalize) if rule.get('mode') else 'None' }}</td>
+            <td>
+              {% if rule.get('mode') == 'percent' %}
+                {% set t = rule.get('targets') or {} %}
+                {% set items = [] %}
+                {% for tpid, val in t.items() %}
+                  {% set tid = (tpid|string)|int %}
+                  {% set tname = participant_name_by_id.get(tid) or tpid %}
+                  {% set _ = items.append(tname ~ ': ' ~ ('%.2f'|format(val|float)) ~ '%') %}
+                {% endfor %}
+                {{ items|join(', ') if items else '—' }}
+              {% elif rule.get('mode') == 'amount' %}
+                {% set t = rule.get('targets') or {} %}
+                {% set items = [] %}
+                {% for tpid, val in t.items() %}
+                  {% set tid = (tpid|string)|int %}
+                  {% set tname = participant_name_by_id.get(tid) or tpid %}
+                  {% set _ = items.append(tname ~ ': ₱' ~ ('%.2f'|format(val|float))) %}
+                {% endfor %}
+                {{ items|join(', ') if items else '—' }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+  <form id="comp-adjustments-form" method="post" action="{{ url_for('main.save_component_adjustments', bill_id=bill.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Participant</th>
+          <th>Redistribution <button type="button" class="linklike comp-adj-toggle-all" data-comp="*" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for comp in components %}
+        <tr>
+          <td colspan="4" class="muted"><small><strong>{{ comp.name }}</strong> — {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</small> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></td>
+        </tr>
+        {% for p in participants %}
+          {% if p.id in member_ids %}
+          <tr>
+            <td>{{ comp.name }}</td>
+            <td>{{ p.name }}</td>
+            <td>
+              {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
+              <div class="comp-redis-box" data-panel="comp-{{ comp.id }}-{{ p.id }}" style="display:none;">
+                <div style="display:flex; gap:.25rem; align-items:center; flex-wrap:wrap; margin-bottom:.25rem;">
+                {% set rule = adj.get('rule') or {} %}
+                <select name="mode_comp_{{ comp.id }}_{{ p.id }}" id="mode_comp_{{ comp.id }}_{{ p.id }}">
+                  <option value="" {% if not rule.get('mode') %}selected{% endif %}>— None —</option>
+                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
+                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
+                </select>
+                <span class="muted" data-redis-summary="comp-{{ comp.id }}-{{ p.id }}"><small></small></span>
+                </div>
+                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-left:.5rem;">
+                  {% for t in participants %}
+                    {% if t.id in member_ids and t.id != p.id %}
+                      <label><small>{{ t.name }}</small></label>
+                      {% set targets = rule.get('targets') or {} %}
+                      <input type="number" step="0.01" min="0" name="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" id="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:6rem;">
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card" style="margin-top: var(--gap);">
   <h3>Contributions</h3>
   {% if components and dynamic_contributions %}
   <p class="muted" style="margin-top:.25rem;"><small>
@@ -248,69 +366,6 @@
     <div class="muted"><small>No components yet. Add components above to see contributions.</small></div>
   {% endif %}
 </section>
-
-<section class="card" style="margin-top: var(--gap);">
-  <h3>Per-Component Adjustments</h3>
-  {% if not components %}
-    <div class="muted"><small>No components to adjust.</small></div>
-  {% elif bill.archived %}
-    <div class="muted"><small>This month is archived. Adjustments cannot be changed.</small></div>
-  {% else %}
-  <form id="comp-adjustments-form" method="post" action="{{ url_for('main.save_component_adjustments', bill_id=bill.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <table>
-      <thead>
-        <tr>
-          <th>Component</th>
-          <th>Participant</th>
-          <th>Zero</th>
-          <th>Redistribution <button type="button" class="linklike comp-adj-toggle-all" data-comp="*" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for comp in components %}
-        <tr>
-          <td colspan="4" class="muted"><small><strong>{{ comp.name }}</strong> — {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</small> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></td>
-        </tr>
-        {% for p in participants %}
-          <tr>
-            <td>{{ comp.name }}</td>
-            <td>{{ p.name }}</td>
-            <td>
-              {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
-              <input type="checkbox" name="comp_{{ comp.id }}_zero_{{ p.id }}" {% if adj.get('zero') %}checked{% endif %} data-comp-zero="{{ comp.id }}-{{ p.id }}">
-            </td>
-            <td>
-              <div class="comp-redis-box" data-panel="comp-{{ comp.id }}-{{ p.id }}" style="display:none;">
-                <div style="display:flex; gap:.25rem; align-items:center; flex-wrap:wrap; margin-bottom:.25rem;">
-                {% set rule = adj.get('rule') or {} %}
-                <select name="mode_comp_{{ comp.id }}_{{ p.id }}" id="mode_comp_{{ comp.id }}_{{ p.id }}">
-                  <option value="" {% if not rule.get('mode') %}selected{% endif %}>—</option>
-                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
-                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
-                </select>
-                <span class="muted" data-redis-summary="comp-{{ comp.id }}-{{ p.id }}"><small></small></span>
-                </div>
-                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-left:.5rem;">
-                  {% for t in participants %}
-                    {% if t.id != p.id %}
-                      <label><small>{{ t.name }}</small></label>
-                      {% set targets = rule.get('targets') or {} %}
-                      <input type="number" step="0.01" min="0" name="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" id="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:6rem;">
-                    {% endif %}
-                  {% endfor %}
-                </div>
-              </div>
-            </td>
-          </tr>
-        {% endfor %}
-      {% endfor %}
-      </tbody>
-    </table>
-    <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
-  </form>
-  {% endif %}
-</section>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -334,7 +389,7 @@
       summary.style.color = Math.abs(sum - base) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
     } else {
       const anyVal = Array.from(inputs).some(inp => { const v = parseFloat(inp.value); return !isNaN(v) && v > 0; });
-      summary.textContent = anyVal ? 'Select a mode (Percent or Amount)' : '';
+      summary.textContent = anyVal ? 'Select a mode (Percent or Amount) or clear values' : 'No redistribution';
       summary.style.color = anyVal ? 'var(--error-color, #b00020)' : 'var(--muted-color, #666)';
     }
   }
@@ -348,9 +403,12 @@
         const pid = panel.getAttribute('data-panel').split('-').pop();
         const modeSel = document.getElementById(`mode_comp_${compId}_${pid}`);
         if (!modeSel) return;
-        modeSel.addEventListener('change', () => recomputeDynamicPanel(compId, pid, baseMap));
+        modeSel.addEventListener('change', () => { panel.style.display = modeSel.value ? 'block' : 'none'; recomputeDynamicPanel(compId, pid, baseMap); });
         const inputs = document.querySelectorAll(`input[id^=redis_comp_${compId}_${pid}_]`);
-        inputs.forEach(inp => inp.addEventListener('input', () => recomputeDynamicPanel(compId, pid, baseMap)));
+        inputs.forEach(inp => inp.addEventListener('input', () => { panel.style.display = 'block'; recomputeDynamicPanel(compId, pid, baseMap); }));
+        // Open panel if there is an existing rule or mode selected
+        const hasExisting = Array.from(inputs).some(i => { const v = parseFloat(i.value); return !isNaN(v) && v > 0; }) || (modeSel.value === 'percent' || modeSel.value === 'amount');
+        if (hasExisting){ panel.style.display = 'block'; }
         recomputeDynamicPanel(compId, pid, baseMap);
       });
     });

@@ -118,8 +118,12 @@ class BillCalculator:
         # start with base amounts (unrounded for distribution math)
         amounts = dict(base_map)
 
-        # Collect zeros and zero their amounts
-        zeros = {pid for pid, adj in adjustments_for_component.items() if getattr(adj, 'zero', False)}
+        # Collect participants to redistribute (explicit zero or any rule implies zeroing own share)
+        zeros = {
+            pid
+            for pid, adj in adjustments_for_component.items()
+            if getattr(adj, 'zero', False) or getattr(adj, 'redis_rule', None)
+        }
         zeroed_total = sum(base_map.get(pid, 0.0) for pid in zeros)
         for pid in zeros:
             amounts[pid] = 0.0
