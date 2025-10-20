@@ -54,6 +54,20 @@ class MeterReading(db.Model):
         return max(0.0, self.reading_current - self.reading_previous)
 
 
+class MonthParticipant(db.Model):
+    __tablename__ = "month_participants"
+    id = db.Column(db.Integer, primary_key=True)
+    month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participants.id"), nullable=False, index=True)
+
+    month = db.relationship("MonthlyBill")
+    participant = db.relationship("Participant")
+
+    __table_args__ = (
+        db.UniqueConstraint("month_id", "participant_id", name="uq_month_participant"),
+    )
+
+
 class MonthlyAdjustment(db.Model):
     __tablename__ = "monthly_adjustments"
     id = db.Column(db.Integer, primary_key=True)
@@ -71,3 +85,43 @@ class MonthlyAdjustment(db.Model):
     participant = db.relationship("Participant")
 
     __table_args__ = (db.UniqueConstraint("month_id", "participant_id", name="uq_adjustment_month_participant"),)
+
+
+class BillComponent(db.Model):
+    __tablename__ = "bill_components"
+    id = db.Column(db.Integer, primary_key=True)
+    month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False, index=True)
+    name = db.Column(db.String(64), nullable=False)
+    amount = db.Column(db.Float, nullable=False, default=0.0)
+    # split_method: 'usage' or 'equal'
+    split_method = db.Column(db.String(16), nullable=False, default="equal")
+    # Optional distribution map for 'percentage' or 'amount' methods: {participant_id: value}
+    distribution = db.Column(db.JSON, nullable=True)
+    position = db.Column(db.Integer, nullable=False, default=0)
+
+    month = db.relationship("MonthlyBill", backref=db.backref("components", cascade="all, delete-orphan"))
+
+    __table_args__ = (db.UniqueConstraint("month_id", "name", name="uq_component_month_name"),)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<BillComponent {self.name} {self.amount} {self.split_method}>"
+
+
+class ComponentAdjustment(db.Model):
+    __tablename__ = "component_adjustments"
+    id = db.Column(db.Integer, primary_key=True)
+    month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey("bill_components.id"), nullable=False)
+    participant_id = db.Column(db.Integer, db.ForeignKey("participants.id"), nullable=False)
+    zero = db.Column(db.Boolean, default=False, nullable=False)
+    # Optional redistribution rule per component
+    # {"mode": "percent"|"amount", "targets": {participant_id: value, ...}}
+    redis_rule = db.Column(db.JSON, nullable=True)
+
+    month = db.relationship("MonthlyBill")
+    component = db.relationship("BillComponent")
+    participant = db.relationship("Participant")
+
+    __table_args__ = (
+        db.UniqueConstraint("month_id", "component_id", "participant_id", name="uq_component_adj_triplet"),
+    )

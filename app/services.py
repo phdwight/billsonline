@@ -1,121 +1,163 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
-from .models import MonthlyBill, MeterReading, Participant
-
-
-@dataclass
-class Contribution:
-    participant: Participant
-    electricity: float
-    water: float
-    internet: float
-
-    @property
-    def total(self) -> float:
-        return self.electricity + self.water + self.internet
+from .models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
 
 
 class BillCalculator:
-    def compute_contributions(self, bill: MonthlyBill, readings: List[MeterReading], participants: List[Participant], adjustments: Dict[int, Dict[str, object]] | None = None) -> List[Contribution]:
-        """Compute contributions and apply adjustments.
-        adjustments: mapping participant_id -> {
-          '<comp>': True/False (zero flag), and optionally
-          'redis_<comp>': { 'mode': 'percent'|'amount', 'targets': { pid: value, ... } }
-        }
+    # ========================= Dynamic components API =========================
+    @dataclass
+    class DynamicContribution:
+        participant: Participant
+        components: Dict[str, float]
+
+        @property
+        def total(self) -> float:
+            return round(sum(self.components.values()), 2)
+
+    def compute_contributions_dynamic(
+        self,
+        bill: MonthlyBill,
+        components: List[BillComponent],
+        readings: List[MeterReading],
+        participants: List[Participant],
+        component_adjustments: Iterable[ComponentAdjustment] | None = None,
+    ) -> List["BillCalculator.DynamicContribution"]:
+        """Compute contributions for arbitrary components.
+
+        components: BillComponent objects with amount and split_method ('usage'|'equal').
+        component_adjustments: ComponentAdjustment entries, per (component_id, participant_id) with zero flag and optional redis_rule.
+        Returns list of DynamicContribution preserving per-component columns by name.
         """
-        # 1) Compute base shares per component
-        electricity_shares, water_share, internet_share = self._compute_base_shares(bill, readings, participants)
+        if not participants or not components:
+            return [
+                BillCalculator.DynamicContribution(participant=p, components={})
+                for p in participants
+            ]
 
-        # 2) Initialize contributions from base shares
-        contributions: List[Contribution] = [
-            Contribution(
-                participant=p,
-                electricity=round(electricity_shares.get(p.id, 0.0), 2),
-                water=round(water_share, 2),
-                internet=round(internet_share, 2),
-            )
-            for p in participants
-        ]
-
-        # 3) Apply zero-out and custom redistribution per component
-        adjustments = adjustments or {}
-        # Build base maps for components
-        water_map = {p.id: water_share for p in participants}
-        internet_map = {p.id: internet_share for p in participants}
-        self._redistribute_component('electricity', contributions, electricity_shares, adjustments)
-        self._redistribute_component('water', contributions, water_map, adjustments)
-        self._redistribute_component('internet', contributions, internet_map, adjustments)
-
-        return contributions
-
-    def _compute_base_shares(self, bill: MonthlyBill, readings: List[MeterReading], participants: List[Participant]):
-        """Return (electricity_shares map, water_share value, internet_share value)."""
+        # Prepare lookups
         usage_by_pid: Dict[int, float] = {r.participant_id: r.usage() for r in readings}
         total_usage = sum(usage_by_pid.values())
-        electricity_shares: Dict[int, float] = {}
+
+        adjs_by_comp: Dict[int, Dict[int, ComponentAdjustment]] = {}
+        if component_adjustments:
+            for adj in component_adjustments:
+                adjs_by_comp.setdefault(adj.component_id, {})[adj.participant_id] = adj
+
+        # Compute per-component amounts per participant
+        per_comp_amounts: Dict[int, Dict[str, float]] = {p.id: {} for p in participants}
+
+        for comp in sorted(components, key=lambda c: (c.position or 0, c.id)):
+            # Base map for this component
+            base_map: Dict[int, float] = {}
+            if comp.split_method == 'usage':
+                for p in participants:
+                    u = usage_by_pid.get(p.id, 0.0)
+                    share = (comp.amount * (u / total_usage)) if total_usage > 0 else 0.0
+                    base_map[p.id] = share
+            elif comp.split_method == 'equal':  # equal
+                equal_share = (comp.amount / len(participants)) if participants else 0.0
+                for p in participants:
+                    base_map[p.id] = equal_share
+            elif comp.split_method == 'percentage':
+                # distribution: {participant_id: percent}
+                dist = getattr(comp, 'distribution', None) or {}
+                # Allow sum not exactly 100 by normalizing
+                try:
+                    total_pct = sum(float(dist.get(str(p.id), dist.get(p.id, 0)) or 0) for p in participants)
+                except Exception:
+                    total_pct = 0.0
+                for p in participants:
+                    pct = float(dist.get(str(p.id), dist.get(p.id, 0)) or 0)
+                    share = comp.amount * (pct / (total_pct if total_pct > 0 else 100.0))
+                    base_map[p.id] = share
+            elif comp.split_method == 'amount':
+                # distribution: {participant_id: amount}
+                dist = getattr(comp, 'distribution', None) or {}
+                for p in participants:
+                    try:
+                        base_map[p.id] = float(dist.get(str(p.id), dist.get(p.id, 0)) or 0)
+                    except Exception:
+                        base_map[p.id] = 0.0
+            else:
+                # Unknown method -> treat as equal
+                equal_share = (comp.amount / len(participants)) if participants else 0.0
+                for p in participants:
+                    base_map[p.id] = equal_share
+
+            # Apply zero and redistribution for this component
+            final_map = self._apply_component_adjustments_dynamic(
+                component=comp,
+                base_map=base_map,
+                adjustments_for_component=adjs_by_comp.get(comp.id, {}),
+            )
+
+            # Round and store by component name
+            for p in participants:
+                per_comp_amounts[p.id][comp.name] = round(final_map.get(p.id, 0.0), 2)
+
+        # Build DynamicContribution objects
+        dyn_contribs: List[BillCalculator.DynamicContribution] = []
         for p in participants:
-            u = usage_by_pid.get(p.id, 0.0)
-            share = (bill.electricity_amount * (u / total_usage)) if total_usage > 0 else 0.0
-            electricity_shares[p.id] = share
-        water_share = (bill.water_amount / len(participants)) if participants else 0.0
-        internet_share = (bill.internet_amount / len(participants)) if participants else 0.0
-        return electricity_shares, water_share, internet_share
+            dyn_contribs.append(
+                BillCalculator.DynamicContribution(participant=p, components=per_comp_amounts.get(p.id, {}))
+            )
+        return dyn_contribs
 
-    def _redistribute_component(self, component: str, contributions: List[Contribution], base_map: Dict[int, float], adjustments: Dict[int, Dict[str, object]]):
-        """Apply zero-out flags and custom redistribution rules for a single component."""
-        amounts, zeros, zeroed_total, remaining_ids = self._prepare_amounts(component, contributions, base_map, adjustments)
-        if zeroed_total > 0 and remaining_ids:
-            allocated = 0.0
-            for zpid in zeros:
-                allocated += self._apply_rule_for_zeroed(component, zpid, base_map, adjustments, remaining_ids, amounts)
-            # Any leftover distributes equally among remaining
-            self._distribute_leftover(zeroed_total, allocated, remaining_ids, amounts)
-            # Correct rounding drift to preserve total after rounding
-            rounded = {pid: round(val, 2) for pid, val in amounts.items()}
-            target_total = round(sum(base_map.values()), 2)
-            current_total = round(sum(rounded.values()), 2)
-            delta = round(target_total - current_total, 2)
-            if abs(delta) >= 0.01:
-                # adjust the participant with the largest current share among remaining_ids
-                candidates = [pid for pid in remaining_ids if rounded.get(pid, 0.0) > 0]
-                if candidates:
-                    adjust_pid = max(candidates, key=lambda pid: rounded.get(pid, 0.0))
-                    rounded[adjust_pid] = max(0.0, round(rounded[adjust_pid] + delta, 2))
-                # write back rounded values
-                for pid, val in rounded.items():
-                    amounts[pid] = val
-        # Write back rounded values
-        for c in contributions:
-            setattr(c, component, round(amounts.get(c.participant.id, 0.0), 2))
+    def _apply_component_adjustments_dynamic(
+        self,
+        component: BillComponent,
+        base_map: Dict[int, float],
+        adjustments_for_component: Dict[int, ComponentAdjustment],
+    ) -> Dict[int, float]:
+        """Return adjusted amounts per participant for one component. Preserves total after rounding.
+        adjustments_for_component: map of participant_id -> ComponentAdjustment
+        """
+        # start with base amounts (unrounded for distribution math)
+        amounts = dict(base_map)
 
-    def _prepare_amounts(self, component: str, contributions: List[Contribution], base_map: Dict[int, float], adjustments: Dict[int, Dict[str, object]]):
-        amounts = {c.participant.id: getattr(c, component) for c in contributions}
-        zeros = {pid for pid, flags in adjustments.items() if isinstance(flags, dict) and flags.get(component, False)}
+        # Collect zeros and zero their amounts
+        zeros = {pid for pid, adj in adjustments_for_component.items() if getattr(adj, 'zero', False)}
         zeroed_total = sum(base_map.get(pid, 0.0) for pid in zeros)
         for pid in zeros:
             amounts[pid] = 0.0
-        remaining_ids = [pid for pid, amt in amounts.items() if amt > 0]
-        return amounts, zeros, zeroed_total, remaining_ids
 
-    def _apply_rule_for_zeroed(self, component: str, zpid: int, base_map: Dict[int, float], adjustments: Dict[int, Dict[str, object]], remaining_ids: List[int], amounts: Dict[int, float]) -> float:
-        flags = adjustments.get(zpid, {})
-        rule = None
-        if isinstance(flags, dict):
-            rule = flags.get(f"redis_{component}")
+        remaining_ids = [pid for pid, amt in amounts.items() if amt > 0]
+
         allocated = 0.0
-        if rule and isinstance(rule, dict) and 'mode' in rule and 'targets' in rule:
-            mode = rule.get('mode')
-            targets = rule.get('targets') or {}
-            base_amount = base_map.get(zpid, 0.0)
-            to_distribute = base_amount
-            if mode == 'percent':
-                allocated += self._allocate_percent(to_distribute, targets, remaining_ids, amounts)
-            elif mode == 'amount':
-                allocated += self._allocate_amount(to_distribute, targets, remaining_ids, amounts)
-        return allocated
+        # Apply per-zeroed custom rules
+        for zpid in zeros:
+            adj = adjustments_for_component.get(zpid)
+            rule = getattr(adj, 'redis_rule', None) if adj else None
+            if isinstance(rule, dict) and 'mode' in rule and 'targets' in rule:
+                mode = rule.get('mode')
+                targets = rule.get('targets') or {}
+                base_amount = base_map.get(zpid, 0.0)
+                to_distribute = base_amount
+                if mode == 'percent':
+                    allocated += self._allocate_percent(to_distribute, targets, remaining_ids, amounts)
+                elif mode == 'amount':
+                    allocated += self._allocate_amount(to_distribute, targets, remaining_ids, amounts)
+
+        # Distribute leftover equally
+        self._distribute_leftover(zeroed_total, allocated, remaining_ids, amounts)
+
+        # Rounding correction: ensure sum equals component.amount (rounded to cents)
+        rounded = {pid: round(val, 2) for pid, val in amounts.items()}
+        target_total = round(sum(base_map.values()), 2)
+        current_total = round(sum(rounded.values()), 2)
+        delta = round(target_total - current_total, 2)
+        if abs(delta) >= 0.01:
+            candidates = [pid for pid in remaining_ids if rounded.get(pid, 0.0) > 0]
+            if candidates:
+                adjust_pid = max(candidates, key=lambda pid: rounded.get(pid, 0.0))
+                rounded[adjust_pid] = max(0.0, round(rounded[adjust_pid] + delta, 2))
+
+        return rounded
+
+    # Contributions are handled exclusively via dynamic components.
 
     def _allocate_percent(self, to_distribute: float, targets: Dict, remaining_ids: List[int], amounts: Dict[int, float]) -> float:
         allocated = 0.0
