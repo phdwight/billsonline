@@ -5,9 +5,36 @@
   <h2 class="section-title">Edit Month {{ bill.year }}-{{ month_names[bill.month-1] }}</h2>
   <form method="post" class="stack">
     {{ form.csrf_token }}
-    <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}</label>
-    <label>Water Amount {{ form.water_amount(step='0.01', required=True) }}</label>
-    <label>Internet Amount {{ form.internet_amount(step='0.01', required=True) }}</label>
+    <label>
+      Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}
+      <div class="muted"><small>Split:
+        <select name="legacy_electricity_split">
+          <option value="usage" selected>Usage</option>
+          <option value="percentage">Percentage</option>
+          <option value="amount">Amount</option>
+        </select>
+      </small></div>
+    </label>
+    <label>
+      Water Amount {{ form.water_amount(step='0.01', required=True) }}
+      <div class="muted"><small>Split:
+        <select name="legacy_water_split">
+          <option value="equal" selected>Equal</option>
+          <option value="percentage">Percentage</option>
+          <option value="amount">Amount</option>
+        </select>
+      </small></div>
+    </label>
+    <label>
+      Internet Amount {{ form.internet_amount(step='0.01', required=True) }}
+      <div class="muted"><small>Split:
+        <select name="legacy_internet_split">
+          <option value="equal" selected>Equal</option>
+          <option value="percentage">Percentage</option>
+          <option value="amount">Amount</option>
+        </select>
+      </small></div>
+    </label>
     <div style="display:flex; gap:.5rem; align-items:center;">
       <button class="btn btn-primary" type="submit">Save</button>
       <a class="btn btn-secondary" href="{{ url_for('main.month_detail', bill_id=bill.id) }}">Cancel</a>

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 from .extensions import db
-from .models import Participant, MonthlyBill, MeterReading, MonthlyAdjustment
+from .models import Participant, MonthlyBill, MeterReading, MonthlyAdjustment, BillComponent, ComponentAdjustment, MonthParticipant
 
 
 class ParticipantRepository:
@@ -98,6 +98,23 @@ class MeterReadingRepository:
         return MeterReading.query.filter_by(month_id=month_id).all()
 
 
+class MonthParticipantRepository:
+    def add(self, month_id: int, participant_id: int) -> MonthParticipant:
+        mp = MonthParticipant.query.filter_by(month_id=month_id, participant_id=participant_id).first()
+        if mp is None:
+            mp = MonthParticipant(month_id=month_id, participant_id=participant_id)
+            db.session.add(mp)
+            db.session.commit()
+        return mp
+
+    def remove(self, month_id: int, participant_id: int) -> None:
+        MonthParticipant.query.filter_by(month_id=month_id, participant_id=participant_id).delete()
+        db.session.commit()
+
+    def list_for_month(self, month_id: int) -> list[MonthParticipant]:
+        return MonthParticipant.query.filter_by(month_id=month_id).all()
+
+
 class MonthlyAdjustmentRepository:
     def upsert(self, month_id: int, participant_id: int, zero_electricity: bool, zero_water: bool, zero_internet: bool, redis_electricity=None, redis_water=None, redis_internet=None) -> MonthlyAdjustment:
         adj = MonthlyAdjustment.query.filter_by(month_id=month_id, participant_id=participant_id).first()
@@ -121,4 +138,63 @@ class MonthlyAdjustmentRepository:
 
     def clear_for_month(self, month_id: int) -> None:
         MonthlyAdjustment.query.filter_by(month_id=month_id).delete()
+        db.session.commit()
+
+
+class BillComponentRepository:
+    def list_for_month(self, month_id: int) -> list[BillComponent]:
+        return (
+            BillComponent.query.filter_by(month_id=month_id)
+            .order_by(BillComponent.position.asc(), BillComponent.id.asc())
+            .all()
+        )
+
+    def add(self, month_id: int, name: str, amount: float, split_method: str = "equal", position: int | None = None, distribution=None) -> BillComponent:
+        comp = BillComponent(month_id=month_id, name=name.strip(), amount=float(amount), split_method=split_method)
+        if position is not None:
+            comp.position = position
+        if distribution is not None:
+            comp.distribution = distribution
+        db.session.add(comp)
+        db.session.commit()
+        return comp
+
+    def update(self, component_id: int, name: str | None = None, amount: float | None = None, split_method: str | None = None, position: int | None = None, distribution=None) -> BillComponent:
+        comp = BillComponent.query.get_or_404(component_id)
+        if name is not None:
+            comp.name = name.strip()
+        if amount is not None:
+            comp.amount = float(amount)
+        if split_method is not None:
+            comp.split_method = split_method
+        if position is not None:
+            comp.position = position
+        if distribution is not None:
+            comp.distribution = distribution
+        db.session.commit()
+        return comp
+
+    def delete(self, component_id: int) -> None:
+        comp = BillComponent.query.get_or_404(component_id)
+        db.session.delete(comp)
+        db.session.commit()
+
+
+class ComponentAdjustmentRepository:
+    def upsert(self, month_id: int, component_id: int, participant_id: int, zero: bool, redis_rule=None) -> ComponentAdjustment:
+        adj = ComponentAdjustment.query.filter_by(month_id=month_id, component_id=component_id, participant_id=participant_id).first()
+        if adj is None:
+            adj = ComponentAdjustment(month_id=month_id, component_id=component_id, participant_id=participant_id)
+            db.session.add(adj)
+        adj.zero = bool(zero)
+        # Always set redis_rule; allow clearing by passing None
+        adj.redis_rule = redis_rule
+        db.session.commit()
+        return adj
+
+    def list_for_month(self, month_id: int) -> list[ComponentAdjustment]:
+        return ComponentAdjustment.query.filter_by(month_id=month_id).all()
+
+    def clear_for_month(self, month_id: int) -> None:
+        ComponentAdjustment.query.filter_by(month_id=month_id).delete()
         db.session.commit()

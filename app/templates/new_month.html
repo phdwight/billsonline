@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2 class="section-title">Create New Month</h2>
+  <form method="post" action="{{ url_for('main.add_month') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
+    {{ form.csrf_token }}
+    <div class="row">
+      <label>Year {{ form.year(min=2000, max=3000, required=True) }}</label>
+      <label>Month {{ form.month(required=True) }}</label>
+    </div>
+    <div class="row">
+      <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split: 
+          <select name="legacy_electricity_split" id="legacy_electricity_split" onchange="toggleLegacyEditor('electricity')">
+            <option value="usage" selected>Usage</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+      <label>Water Amount {{ form.water_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split: 
+          <select name="legacy_water_split" id="legacy_water_split" onchange="toggleLegacyEditor('water')">
+            <option value="equal" selected>Equal</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+      <label>Internet Amount {{ form.internet_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split: 
+          <select name="legacy_internet_split" id="legacy_internet_split" onchange="toggleLegacyEditor('internet')">
+            <option value="equal" selected>Equal</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+    </div>
+    <div class="stack">
+      <div id="legacy_electricity_editor" class="card" style="display:none;">
+        <div class="muted"><small>Set per-person values for Electricity (<span id="legacy_electricity_mode">percentage</span>).</small></div>
+        <div class="row">
+          {% for p in participants %}
+          <label><small>{{ p.name }}</small>
+            <input type="number" step="0.01" min="0" name="legacy_electricity_dist_{{ p.id }}" placeholder="0">
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="legacy_water_editor" class="card" style="display:none;">
+        <div class="muted"><small>Set per-person values for Water (<span id="legacy_water_mode">percentage</span>).</small></div>
+        <div class="row">
+          {% for p in participants %}
+          <label><small>{{ p.name }}</small>
+            <input type="number" step="0.01" min="0" name="legacy_water_dist_{{ p.id }}" placeholder="0">
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="legacy_internet_editor" class="card" style="display:none;">
+        <div class="muted"><small>Set per-person values for Internet (<span id="legacy_internet_mode">percentage</span>).</small></div>
+        <div class="row">
+          {% for p in participants %}
+          <label><small>{{ p.name }}</small>
+            <input type="number" step="0.01" min="0" name="legacy_internet_dist_{{ p.id }}" placeholder="0">
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <details class="card" style="margin-top:.5rem;">
+      <summary><strong>Optional: Add components now</strong></summary>
+      <div id="comp-creator" class="stack" style="margin-top:.5rem;">
+        <div class="row comp-row">
+          <label><small>Name</small><input type="text" name="comp_name[]" placeholder="e.g., Gas"></label>
+          <label><small>Amount</small><input type="number" step="0.01" min="0" name="comp_amount[]" placeholder="0.00"></label>
+          <label><small>Split</small>
+            <select name="comp_split[]" onchange="toggleCompEditorForRow(this)">
+              <option value="equal">Equal</option>
+              <option value="usage">By usage</option>
+              <option value="percentage">Percentage</option>
+              <option value="amount">Amount</option>
+            </select>
+          </label>
+          <label><small>Position</small><input type="number" step="1" name="comp_position[]" value="0"></label>
+        </div>
+        <!-- Per-row editors will be inserted by JS -->
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="addCompRow(this)">+ Add another</button>
+    </details>
+    <button class="btn btn-primary" type="submit">Create Month</button>
+    <a class="btn btn-secondary" href="{{ url_for('main.index') }}">Cancel</a>
+  </form>
+  <p class="muted" style="margin-top:.5rem;"><small>Participants: {{ participants|length }} configured. You can add more in Participants.</small></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function addCompRow(btn){
+  const box = btn.previousElementSibling;
+  const row = document.createElement('div');
+  row.className = 'row comp-row';
+  row.innerHTML = `
+    <label><small>Name</small><input type="text" name="comp_name[]" placeholder="e.g., Gas"></label>
+    <label><small>Amount</small><input type="number" step="0.01" min="0" name="comp_amount[]" placeholder="0.00"></label>
+    <label><small>Split</small>
+      <select name="comp_split[]" onchange="toggleCompEditorForRow(this)">
+        <option value="equal">Equal</option>
+        <option value="usage">By usage</option>
+        <option value="percentage">Percentage</option>
+        <option value="amount">Amount</option>
+      </select>
+    </label>
+    <label><small>Position</small><input type="number" step="1" name="comp_position[]" value="0"></label>`;
+  box.appendChild(row);
+}
+function toggleCompEditorForRow(selectEl){
+  const row = selectEl.closest('.comp-row');
+  const container = row.parentElement;
+  const rows = Array.from(container.querySelectorAll('.comp-row'));
+  const index = rows.indexOf(row);
+  const existing = container.querySelector(`.comp-editor[data-index="${index}"]`);
+  if(existing){ existing.remove(); }
+  const val = selectEl.value;
+  if(val === 'percentage' || val === 'amount'){
+    const editor = document.createElement('div');
+    editor.className = 'card comp-editor';
+    editor.dataset.index = String(index);
+    editor.innerHTML = `
+      <div class="muted"><small>Set per-person values (<span class="mode">${val}</span>).</small></div>
+      <div class="row">
+        {% for p in participants %}
+        <label><small>{{ p.name }}</small>
+          <input type="number" step="0.01" min="0" name="comp_dist___IDX___{{ p.id }}" placeholder="0">
+        </label>
+        {% endfor %}
+      </div>`;
+    editor.innerHTML = editor.innerHTML.replaceAll('__IDX__', String(index));
+    container.insertBefore(editor, row.nextSibling);
+    attachCustomEditorHandlers(container, index);
+  }
+}
+function attachCustomEditorHandlers(container, idx){
+  const editor = container.querySelector(`.comp-editor[data-index="${idx}"]`);
+  if(!editor) return;
+  const inputs = editor.querySelectorAll('input[type="number"]');
+  const row = container.querySelectorAll('.comp-row')[idx];
+  const amountEl = row?.querySelector('input[name="comp_amount[]"]');
+  const splitSel = row?.querySelector('select[name="comp_split[]"]');
+  const update = () => updateCustomSum(container, idx);
+  inputs.forEach(inp => inp.addEventListener('input', update));
+  amountEl?.addEventListener('input', update);
+  splitSel?.addEventListener('change', update);
+  update();
+}
+function ensureSumDisplay(editor){
+  let hint = editor.querySelector('.sum-display');
+  if(!hint){
+    hint = document.createElement('small');
+    hint.className = 'sum-display muted';
+    const header = editor.querySelector('.muted small');
+    if(header){
+      header.insertAdjacentElement('afterend', hint);
+    } else {
+      editor.prepend(hint);
+    }
+  }
+  return hint;
+}
+function updateCustomSum(container, idx){
+  const row = container.querySelectorAll('.comp-row')[idx];
+  const editor = container.querySelector(`.comp-editor[data-index="${idx}"]`);
+  if(!row || !editor) return;
+  const sel = row.querySelector('select[name="comp_split[]"]');
+  const amtEl = row.querySelector('input[name="comp_amount[]"]');
+  const inputs = editor.querySelectorAll(`input[name^="comp_dist_${idx}_"]`);
+  let total = 0;
+  inputs.forEach(inp => { const v = parseFloat(inp.value); if(!isNaN(v)) total += v; });
+  const mode = sel?.value;
+  const expected = (mode === 'percentage') ? 100 : parseFloat(amtEl?.value || '0');
+  const hint = ensureSumDisplay(editor);
+  hint.textContent = ` Sum: ${total.toFixed(2)} / ${isFinite(expected) ? (Number.isFinite(expected) ? expected.toFixed(2) : expected) : '—'}`;
+  const mismatch = (mode === 'percentage' && Math.abs(total - 100) > 0.01) || (mode === 'amount' && Math.abs(total - (parseFloat(amtEl?.value || '0'))) > 0.01);
+  editor.style.borderColor = mismatch ? 'var(--danger, #c0392b)' : '';
+  inputs.forEach(inp => { inp.style.borderColor = mismatch ? 'var(--danger, #c0392b)' : ''; });
+}
+function toggleLegacyEditor(kind){
+  const select = document.getElementById(`legacy_${kind}_split`);
+  const editor = document.getElementById(`legacy_${kind}_editor`);
+  const mode = document.getElementById(`legacy_${kind}_mode`);
+  if(!select || !editor) return;
+  const val = select.value;
+  if(val === 'percentage' || val === 'amount'){
+    editor.style.display = '';
+    if(mode) mode.textContent = val;
+  } else {
+    editor.style.display = 'none';
+  }
+}
+['electricity','water','internet'].forEach(toggleLegacyEditor);
+function attachLegacyHandlers(kind){
+  const editor = document.getElementById(`legacy_${kind}_editor`);
+  if(!editor) return;
+  const inputs = editor.querySelectorAll('input[type="number"]');
+  inputs.forEach(inp => inp.addEventListener('input', () => updateLegacySum(kind)));
+  const sel = document.getElementById(`legacy_${kind}_split`);
+  sel?.addEventListener('change', () => updateLegacySum(kind));
+  const amountEl = document.querySelector(`[name="${kind}_amount"]`);
+  amountEl?.addEventListener('input', () => updateLegacySum(kind));
+  updateLegacySum(kind);
+}
+function updateLegacySum(kind){
+  const editor = document.getElementById(`legacy_${kind}_editor`);
+  if(!editor) return;
+  const sel = document.getElementById(`legacy_${kind}_split`);
+  const inputs = editor.querySelectorAll(`input[name^="legacy_${kind}_dist_"]`);
+  let total = 0;
+  inputs.forEach(inp => { const v = parseFloat(inp.value); if(!isNaN(v)) total += v; });
+  const mode = sel?.value;
+  let expected = 0;
+  if(mode === 'percentage') expected = 100;
+  if(mode === 'amount'){
+    const amountEl = document.querySelector(`[name="${kind}_amount"]`);
+    expected = parseFloat(amountEl?.value || '0');
+  }
+  const header = editor.querySelector('.muted small');
+  let hint = editor.querySelector('.sum-display');
+  if(!hint){
+    hint = document.createElement('small');
+    hint.className = 'sum-display muted';
+    if(header){ header.insertAdjacentElement('afterend', hint); }
+    else { editor.prepend(hint); }
+  }
+  if(mode === 'percentage' || mode === 'amount'){
+    hint.textContent = ` Sum: ${total.toFixed(2)} / ${isFinite(expected) ? expected.toFixed(2) : '—'}`;
+    const mismatch = (mode === 'percentage' && Math.abs(total - 100) > 0.01) || (mode === 'amount' && Math.abs(total - expected) > 0.01);
+    editor.style.borderColor = mismatch ? 'var(--danger, #c0392b)' : '';
+    inputs.forEach(inp => { inp.style.borderColor = mismatch ? 'var(--danger, #c0392b)' : ''; });
+  } else {
+    hint.textContent = '';
+    editor.style.borderColor = '';
+    inputs.forEach(inp => { inp.style.borderColor = ''; });
+  }
+}
+['electricity','water','internet'].forEach(attachLegacyHandlers);
+function validateCreationDistributions(form){
+  let ok = true;
+  form.querySelectorAll('.field-error-inline').forEach(e => e.remove());
+  function showError(afterEl, msg){
+    const small = document.createElement('small');
+    small.className = 'field-error field-error-inline';
+    small.textContent = msg;
+    afterEl.parentElement.appendChild(small);
+  }
+  const legacy = [
+    {kind: 'electricity', select: '#legacy_electricity_split', amount: form.querySelector('[name="electricity_amount"]')},
+    {kind: 'water', select: '#legacy_water_split', amount: form.querySelector('[name="water_amount"]')},
+    {kind: 'internet', select: '#legacy_internet_split', amount: form.querySelector('[name="internet_amount"]')},
+  ];
+  legacy.forEach(item => {
+    const sel = form.querySelector(item.select);
+    if(!sel) return;
+    const val = sel.value;
+    if(val === 'percentage' || val === 'amount'){
+      const inputs = form.querySelectorAll(`[name^="legacy_${item.kind}_dist_"]`);
+      let total = 0;
+      inputs.forEach(inp => { const v = parseFloat(inp.value); if(!isNaN(v)) total += v; });
+      if(val === 'percentage' && Math.abs(total - 100) > 0.01){
+        ok = false;
+        showError(sel, `Percentages must sum to 100 (current: ${total.toFixed(2)})`);
+      }
+      if(val === 'amount'){
+        const amt = parseFloat(item.amount?.value || '0');
+        if(Math.abs(total - amt) > 0.01){
+          ok = false;
+          showError(sel, `Amounts must sum to ${amt.toFixed(2)} (current: ${total.toFixed(2)})`);
+        }
+      }
+    }
+  });
+  const container = form.querySelector('#comp-creator');
+  if(container){
+    const rows = Array.from(container.querySelectorAll('.comp-row'));
+    rows.forEach((row, idx) => {
+      const sel = row.querySelector('select[name="comp_split[]"]');
+      const amtEl = row.querySelector('input[name="comp_amount[]"]');
+      if(!sel) return;
+      const val = sel.value;
+      if(val === 'percentage' || val === 'amount'){
+        const inputs = container.querySelectorAll(`input[name^="comp_dist_${idx}_"]`);
+        let total = 0;
+        inputs.forEach(inp => { const v = parseFloat(inp.value); if(!isNaN(v)) total += v; });
+        if(val === 'percentage' && Math.abs(total - 100) > 0.01){
+          ok = false;
+          showError(sel, `Percentages must sum to 100 (current: ${total.toFixed(2)})`);
+        }
+        if(val === 'amount'){
+          const amt = parseFloat(amtEl?.value || '0');
+          if(Math.abs(total - amt) > 0.01){
+            ok = false;
+            showError(sel, `Amounts must sum to ${amt.toFixed(2)} (current: ${total.toFixed(2)})`);
+          }
+        }
+      }
+    });
+  }
+  return ok;
+}
+</script>
+{% endblock %}

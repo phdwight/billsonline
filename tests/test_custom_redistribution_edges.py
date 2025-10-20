@@ -1,5 +1,5 @@
 from app.services import BillCalculator
-from app.models import Participant, MonthlyBill, MeterReading
+from app.models import Participant, MonthlyBill, MeterReading, BillComponent, ComponentAdjustment
 
 
 def P(id, name):
@@ -25,13 +25,18 @@ def test_percent_includes_self_and_zeroed_targets_leftover_equal():
             }
         }
     }
-    c = BillCalculator().compute_contributions(bill, [], parts, adjustments)
+    # Dynamic: create Water component and a zero rule targeting self and zero percent for others
+    water = BillComponent(month_id=1, name="Water", amount=90.0, split_method='equal', position=0)
+    water.id = 201
+    adj = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=B.id, zero=True,
+                              redis_rule={'mode': 'percent', 'targets': {str(B.id): 100, C.id: 0}})
+    c = BillCalculator().compute_contributions_dynamic(bill, [water], [], parts, [adj])
     by = {x.participant.id: x for x in c}
     # Bob's 30 redistributes equally to remaining eligible (Alice & Charlie) => +15 each
-    assert by[A.id].water == 45.0
-    assert by[B.id].water == 0.0
-    assert by[C.id].water == 45.0
-    assert round(sum(x.water for x in c), 2) == bill.water_amount
+    assert by[A.id].components["Water"] == 45.0
+    assert by[B.id].components["Water"] == 0.0
+    assert by[C.id].components["Water"] == 45.0
+    assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
 
 
 def test_amount_underflow_leftover_equal():
@@ -49,11 +54,15 @@ def test_amount_underflow_leftover_equal():
             }
         }
     }
-    c = BillCalculator().compute_contributions(bill, [], parts, adjustments)
+    internet = BillComponent(month_id=1, name="Internet", amount=100.0, split_method='equal', position=0)
+    internet.id = 202
+    adj = ComponentAdjustment(month_id=1, component_id=internet.id, participant_id=A.id, zero=True,
+                              redis_rule={'mode': 'amount', 'targets': {B.id: 10}})
+    c = BillCalculator().compute_contributions_dynamic(bill, [internet], [], parts, [adj])
     by = {x.participant.id: x for x in c}
-    assert by[A.id].internet == 0.0
-    assert by[B.id].internet == 100.0
-    assert round(sum(x.internet for x in c), 2) == bill.internet_amount
+    assert by[A.id].components["Internet"] == 0.0
+    assert by[B.id].components["Internet"] == 100.0
+    assert round(sum(x.components["Internet"] for x in c), 2) == bill.internet_amount
 
 
 def test_multiple_zeroed_participants_same_component():
@@ -66,12 +75,18 @@ def test_multiple_zeroed_participants_same_component():
         A.id: {'water': True, 'redis_water': {'mode': 'percent', 'targets': {B.id: 100}}},
         C.id: {'water': True, 'redis_water': {'mode': 'percent', 'targets': {B.id: 100}}},
     }
-    c = BillCalculator().compute_contributions(bill, [], parts, adjustments)
+    water = BillComponent(month_id=1, name="Water", amount=90.0, split_method='equal', position=0)
+    water.id = 203
+    adjA = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=A.id, zero=True,
+                               redis_rule={'mode': 'percent', 'targets': {B.id: 100}})
+    adjC = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=C.id, zero=True,
+                               redis_rule={'mode': 'percent', 'targets': {B.id: 100}})
+    c = BillCalculator().compute_contributions_dynamic(bill, [water], [], parts, [adjA, adjC])
     by = {x.participant.id: x for x in c}
-    assert by[A.id].water == 0.0
-    assert by[C.id].water == 0.0
-    assert by[B.id].water == 90.0
-    assert round(sum(x.water for x in c), 2) == bill.water_amount
+    assert by[A.id].components["Water"] == 0.0
+    assert by[C.id].components["Water"] == 0.0
+    assert by[B.id].components["Water"] == 90.0
+    assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
 
 
 def test_empty_targets_treated_as_equal_split():
@@ -83,13 +98,17 @@ def test_empty_targets_treated_as_equal_split():
     adjustments = {
         D.id: {'water': True, 'redis_water': {'mode': 'percent', 'targets': {}}}
     }
-    c = BillCalculator().compute_contributions(bill, [], parts, adjustments)
+    water = BillComponent(month_id=1, name="Water", amount=80.0, split_method='equal', position=0)
+    water.id = 204
+    adj = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=D.id, zero=True,
+                              redis_rule={'mode': 'percent', 'targets': {}})
+    c = BillCalculator().compute_contributions_dynamic(bill, [water], [], parts, [adj])
     by = {x.participant.id: x for x in c}
     # Dave zeroed -> others get +6.666.. each -> after rounding, two will be 26.67 and one 26.66 to preserve total
-    vals = sorted([by[A.id].water, by[B.id].water, by[C.id].water])
+    vals = sorted([by[A.id].components["Water"], by[B.id].components["Water"], by[C.id].components["Water"]])
     assert vals == [26.66, 26.67, 26.67]
-    assert by[D.id].water == 0.0
-    assert round(sum(x.water for x in c), 2) == bill.water_amount
+    assert by[D.id].components["Water"] == 0.0
+    assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
 
 
 def test_zero_usage_electricity_with_zero_flag_no_effect():
@@ -100,9 +119,12 @@ def test_zero_usage_electricity_with_zero_flag_no_effect():
     readings = [R(A.id, 100, 100), R(B.id, 200, 200)]  # zero usage
     parts = [A, B]
     adjustments = {A.id: {'electricity': True}}
-    c = BillCalculator().compute_contributions(bill, readings, parts, adjustments)
-    assert all(x.electricity == 0.0 for x in c)
-    assert round(sum(x.electricity for x in c), 2) == 0.0
+    electricity = BillComponent(month_id=1, name="Electricity", amount=50.0, split_method='usage', position=0)
+    electricity.id = 205
+    adj = ComponentAdjustment(month_id=1, component_id=electricity.id, participant_id=A.id, zero=True)
+    c = BillCalculator().compute_contributions_dynamic(bill, [electricity], readings, parts, [adj])
+    assert all(x.components["Electricity"] == 0.0 for x in c)
+    assert round(sum(x.components["Electricity"] for x in c), 2) == 0.0
 
 
 def test_nonnumeric_percent_ignored_leftover_equal():
@@ -113,10 +135,14 @@ def test_nonnumeric_percent_ignored_leftover_equal():
     adjustments = {
         A.id: { 'water': True, 'redis_water': { 'mode': 'percent', 'targets': { B.id: 'xx', C.id: 10 } } }
     }
-    c = BillCalculator().compute_contributions(bill, [], parts, adjustments)
+    water = BillComponent(month_id=1, name="Water", amount=90.0, split_method='equal', position=0)
+    water.id = 206
+    adj = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=A.id, zero=True,
+                              redis_rule={'mode': 'percent', 'targets': {B.id: 'xx', C.id: 10}})
+    c = BillCalculator().compute_contributions_dynamic(bill, [water], [], parts, [adj])
     by = {x.participant.id: x for x in c}
     # Base 30 each; A zeroed -> to_distribute=30. Only Cara has numeric 10 but total_pct fails (TypeError handled -> 0), so no allocation -> leftover equal to B & C => 15 each
-    assert by[B.id].water == 45.0
-    assert by[C.id].water == 45.0
-    assert by[A.id].water == 0.0
-    assert round(sum(x.water for x in c), 2) == bill.water_amount
+    assert by[B.id].components["Water"] == 45.0
+    assert by[C.id].components["Water"] == 45.0
+    assert by[A.id].components["Water"] == 0.0
+    assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
