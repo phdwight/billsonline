@@ -8,8 +8,7 @@
   {% if not bill.archived %}
   <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
   {% endif %}
-  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export CSV</a>
-  <a class="btn btn-secondary" href="{{ url_for('main.export_month_xlsx', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Export Excel</a>
+  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Download contributions <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
   <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to months</a>
   
 </p>
