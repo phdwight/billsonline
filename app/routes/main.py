@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, send_file, current_app
-from sqlalchemy.exc import IntegrityError
-from datetime import date
 import csv
 from io import StringIO
-# from openpyxl import Workbook  # no longer used
+from datetime import date
 from urllib.parse import urlparse, unquote
 
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, send_file, current_app
+from sqlalchemy.exc import IntegrityError
+
 from ..extensions import db
-from ..models import Participant, BillComponent
+from ..models import BillComponent
 from ..repositories import (
     ParticipantRepository,
     MonthlyBillRepository,
@@ -87,7 +87,17 @@ def add_participant():
     if not name:
         flash("Name is required", "error")
     else:
-        participants_repo.add(name=name)
+        # Prevent duplicates (case-insensitive)
+        existing = [p for p in participants_repo.list_all() if p.name.lower() == name.lower()]
+        if existing:
+            flash("A participant with that name already exists", "error")
+        else:
+            try:
+                participants_repo.add(name=name)
+            except IntegrityError:
+                # In case of race or DB constraint, rollback and show a friendly error
+                db.session.rollback()
+                flash("A participant with that name already exists", "error")
     return redirect(url_for("main.index"))
 
 
@@ -255,19 +265,21 @@ def month_detail(bill_id: int):
         # Compute base maps per component for client validation
         usage_by_pid = {r.participant_id: r.usage() for r in readings}
         total_usage = sum(usage_by_pid.values())
+        # Use members for base maps to keep UI aligned with who is included
+        member_participants = [p for p in participants if not member_ids or p.id in member_ids]
         for comp in components:
             base_map = {}
             if comp.split_method == 'usage':
-                for p in participants:
+                for p in member_participants:
                     u = usage_by_pid.get(p.id, 0.0)
                     base_map[p.id] = (comp.amount * (u / total_usage)) if total_usage > 0 else 0.0
             else:
-                share = (comp.amount / len(participants)) if participants else 0.0
-                for p in participants:
+                share = (comp.amount / len(member_participants)) if member_participants else 0.0
+                for p in member_participants:
                     base_map[p.id] = share
             dynamic_base_maps[comp.id] = base_map
         # Filter participants to only those linked to this month if membership exists
-        parts_for_calc = [p for p in participants if not member_ids or p.id in member_ids]
+        parts_for_calc = member_participants
         dynamic_contributions = calculator.compute_contributions_dynamic(
             bill=bill,
             components=components,
@@ -290,17 +302,17 @@ def month_detail(bill_id: int):
         readings=readings,
         readings_by_pid=readings_by_pid,
         prev_readings_map=prev_readings_map,
-    contributions=None,
+        contributions=None,
         components=components,
         dynamic_contributions=dynamic_contributions,
-    comp_adjustments=comp_adjustments_map,
-    dynamic_base_maps=dynamic_base_maps,
-    adjustments={},
+        comp_adjustments=comp_adjustments_map,
+        dynamic_base_maps=dynamic_base_maps,
+        adjustments={},
         participant_name_by_id={p.id: p.name for p in participants},
-    base_electricity_map=base_electricity_map,
-    base_water_share=base_water_share,
-    base_internet_share=base_internet_share,
-    total_bill=total_bill,
+        base_electricity_map=base_electricity_map,
+        base_water_share=base_water_share,
+        base_internet_share=base_internet_share,
+        total_bill=total_bill,
     )
 
 
@@ -444,8 +456,12 @@ def save_component_adjustments(bill_id: int):
         flash("This month is archived. Unarchive to make changes.", "error")
         return redirect(url_for("main.month_detail", bill_id=bill.id))
 
+    # Use month membership for adjustments targets
     participants = participants_repo.list_all()
-    pids = [p.id for p in participants]
+    member_ids = {m.participant_id for m in month_part_repo.list_for_month(bill.id)}
+    if not member_ids:
+        member_ids = {p.id for p in participants}
+    pids = [p.id for p in participants if p.id in member_ids]
     components = component_repo.list_for_month(bill.id)
     readings = reading_repo.list_for_month(bill.id)
     usage_by_pid = {r.participant_id: r.usage() for r in readings}
@@ -458,7 +474,7 @@ def save_component_adjustments(bill_id: int):
         u = usage_by_pid.get(pid, 0.0)
         return (comp.amount * (u / total_usage)) if total_usage > 0 else 0.0
 
-    def validate_rule(comp, pid, rule):
+    def validate_rule(comp, pid, rule, participant_name: str):
         if not rule or not isinstance(rule, dict):
             return True, None
         mode = rule.get('mode')
@@ -470,53 +486,67 @@ def save_component_adjustments(bill_id: int):
         if mode == 'percent':
             tot = sum(vals)
             if abs(tot - 100.0) > 0.01:
-                return False, f"{comp.name} redistribution for {pid} must total 100%, got {tot:.2f}%"
+                return False, f"{comp.name}: {participant_name}'s redistribution must sum to 100% (currently {tot:.2f}%)"
         elif mode == 'amount':
             tot = sum(vals)
             base_amt = base_for(comp, pid)
             if abs(tot - float(base_amt)) > 0.01:
-                return False, f"{comp.name} redistribution for {pid} must total {base_amt:.2f}, got {tot:.2f}"
+                return False, f"{comp.name}: {participant_name}'s redistribution must sum to ₱{base_amt:.2f} (currently ₱{tot:.2f})"
         return True, None
 
-    # Iterate all components and participants
+    saved_rules = 0
+    current_app.logger.info("[adjustments] start: bill=%s comps=%s pids=%s", bill.id, [c.id for c in components], pids)
+    # Iterate all components and participants (members only)
     for comp in components:
         for pid in pids:
-            zero = f"comp_{comp.id}_zero_{pid}" in request.form
+            # no explicit zero checkbox anymore; zero derives from a valid rule
+            zero = False
 
             # Parse rule inputs (only consider when zero)
             rule = None
-            if zero:
-                mode = request.form.get(f"mode_comp_{comp.id}_{pid}")
-                if mode in ("percent", "amount"):
-                    targets = {}
-                    for tpid in pids:
-                        if tpid == pid:
-                            continue
-                        raw = request.form.get(f"redis_comp_{comp.id}_{pid}_{tpid}")
-                        if raw is None or raw == "":
-                            continue
-                        try:
-                            val = float(raw)
-                        except ValueError:
-                            continue
-                        if val > 0:
-                            targets[tpid] = val
-                    if targets:
-                        rule = {"mode": mode, "targets": targets}
+            # Collect mode/targets (we'll validate before enabling zero by default)
+            mode = request.form.get(f"mode_comp_{comp.id}_{pid}")
+            # Gather targets regardless of mode to support defaulting
+            targets = {}
+            for tpid in pids:
+                if tpid == pid:
+                    continue
+                raw = request.form.get(f"redis_comp_{comp.id}_{pid}_{tpid}")
+                if raw is None or raw == "":
+                    continue
+                try:
+                    val = float(raw)
+                except ValueError:
+                    continue
+                if val > 0:
+                    targets[tpid] = val
+            attempted_rule = bool(targets) or (mode in ("percent", "amount"))
+            if targets and mode in ("percent", "amount"):
+                rule = {"mode": mode, "targets": targets}
+                current_app.logger.info("[adjustments] parsed rule comp=%s pid=%s mode=%s targets=%s", comp.id, pid, mode, targets)
 
             # Validate
-            if zero and rule:
-                ok, err = validate_rule(comp, pid, rule)
+            if rule:
+                # translate pid to name for readable messages
+                name = next((p.name for p in participants if p.id == pid), str(pid))
+                ok, err = validate_rule(comp, pid, rule, name)
                 if not ok:
-                    # translate pid to name in message
-                    name = next((p.name for p in participants if p.id == pid), str(pid))
-                    flash(err.replace(str(pid), name), "error")
-                    rule = None  # drop invalid rule but keep zero flag
+                    flash(err, "error")
+                    rule = None  # drop invalid rule
+            # Only auto-enable zero when a valid rule exists
+            if rule:
+                zero = True
 
             # Persist adjustment
             comp_adjust_repo.upsert(bill.id, comp.id, pid, zero=zero, redis_rule=rule)
+            if rule:
+                saved_rules += 1
 
-    flash("Component adjustments saved", "info")
+    current_app.logger.info("[adjustments] saved_rules=%s", saved_rules)
+    if saved_rules:
+        flash(f"Component adjustments saved ({saved_rules} redistribution rule(s) updated)", "info")
+    else:
+        flash("Component adjustments saved", "info")
     return redirect(url_for("main.month_detail", bill_id=bill.id))
 
 
