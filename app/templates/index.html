@@ -59,7 +59,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
           </form>
-          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV</a>
+          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
         </li>
         {% else %}
         <li>No months yet</li>
@@ -77,7 +77,6 @@
   <section class="card" style="margin-top: var(--gap);">
     <a class="btn btn-secondary" href="{{ url_for('main.participants_page') }}">Manage participants</a>
     <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.archived') }}">Archived months</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.export_all_csv') }}">Export all CSV</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.export_all_xlsx') }}">Export all Excel</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.download_db') }}">Download database</a>
   </section>
 {% endblock %}

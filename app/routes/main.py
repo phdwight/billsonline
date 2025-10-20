@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, send_file, current_app
 from sqlalchemy.exc import IntegrityError
 from datetime import date
 import csv
 from io import StringIO
-from openpyxl import Workbook
+# from openpyxl import Workbook  # no longer used
+from urllib.parse import urlparse, unquote
 
 from ..extensions import db
 from ..models import Participant
@@ -185,8 +186,8 @@ def archive_month(bill_id: int):
 
 @bp.post("/months/<int:bill_id>/unarchive")
 def unarchive_month(bill_id: int):
-    bill_repo.set_archived(bill_id, False)
-    flash("Month unarchived", "info")
+    # Disallow unarchive permanently
+    flash("Unarchiving is not allowed.", "error")
     return redirect(url_for("main.archived"))
 
 
@@ -198,38 +199,29 @@ def archived():
     return render_template("archived.html", pagination=pagination, months=pagination.items)
 
 
-@bp.get("/export/all.csv")
-def export_all_csv():
-    # Summary of all non-archived months
-    months = bill_repo.list_all()
-    si = StringIO()
-    writer = csv.writer(si)
-    writer.writerow(["Year", "Month", "Electricity", "Water", "Internet", "Total"]) 
-    for m in months:
-        total = m.electricity_amount + m.water_amount + m.internet_amount
-        month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-        writer.writerow([m.year, month_names[m.month-1], f"{m.electricity_amount:.2f}", f"{m.water_amount:.2f}", f"{m.internet_amount:.2f}", f"{total:.2f}"])
-    output = si.getvalue()
-    return Response(output, mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=months.csv"})
+@bp.get("/download/db")
+def download_db():
+    """Download the SQLite database file if using a sqlite:// URL."""
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    parsed = urlparse(uri)
+    if parsed.scheme != "sqlite":
+        flash("Database download is only available when using a local SQLite database.", "error")
+        return redirect(url_for("main.index"))
+    # For sqlite, parsed.path holds the absolute path (may be relative in some forms)
+    db_path = unquote(parsed.path)
+    if db_path.startswith("//"):
+        # urlparse may yield leading // for absolute paths; collapse to single leading /
+        db_path = db_path[1:]
+    import os
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(os.getcwd(), db_path)
+    if not os.path.exists(db_path):
+        flash("Database file not found.", "error")
+        return redirect(url_for("main.index"))
+    return send_file(db_path, as_attachment=True, download_name="billsonline.db")
 
 
-@bp.get("/export/all.xlsx")
-def export_all_xlsx():
-    # Summary of all non-archived months
-    months = bill_repo.list_all()
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Months"
-    ws.append(["Year", "Month", "Electricity", "Water", "Internet", "Total"])
-    for m in months:
-        total = m.electricity_amount + m.water_amount + m.internet_amount
-        month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-        ws.append([m.year, month_names[m.month-1], float(m.electricity_amount), float(m.water_amount), float(m.internet_amount), float(total)])
-    from io import BytesIO
-    bio = BytesIO()
-    wb.save(bio)
-    bio.seek(0)
-    return Response(bio.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=months.xlsx"})
+# Removed global export-all endpoints in favor of per-month contributions downloads
 
 
 @bp.post("/months/<int:bill_id>/delete")
@@ -259,20 +251,19 @@ def export_month_csv(bill_id: int):
 
     si = StringIO()
     writer = csv.writer(si)
-    writer.writerow(["Participant", "Electricity", "Water", "Internet", "Total", "Notes"]) 
+    # Contributions table only
+    writer.writerow(["Participant", "Electricity", "Water", "Internet", "Total"]) 
     for c in contributions:
-        adj = adjustments.get(c.participant.id) or {}
-        zero_parts = ''.join([ch for ch, key in [( 'E', 'electricity'), ('W','water'), ('I','internet')] if adj.get(key)])
-        custom_parts = ''.join([ch for ch, key in [( 'E', 'redis_electricity'), ('W','redis_water'), ('I','redis_internet')] if adj.get(key)])
-        notes = []
-        if zero_parts:
-            notes.append(f"Zeroed:{zero_parts}")
-        if custom_parts:
-            notes.append(f"Custom:{custom_parts}")
-        writer.writerow([c.participant.name, f"{c.electricity:.2f}", f"{c.water:.2f}", f"{c.internet:.2f}", f"{c.total:.2f}", ' '.join(notes)])
+        writer.writerow([
+            c.participant.name,
+            f"{c.electricity:.2f}",
+            f"{c.water:.2f}",
+            f"{c.internet:.2f}",
+            f"{c.total:.2f}",
+        ])
+    # Totals row
     total_bill = bill.electricity_amount + bill.water_amount + bill.internet_amount
-    writer.writerow([])
-    writer.writerow(["Total Bill", f"{bill.electricity_amount:.2f}", f"{bill.water_amount:.2f}", f"{bill.internet_amount:.2f}", f"{total_bill:.2f}"])
+    writer.writerow(["Totals", f"{bill.electricity_amount:.2f}", f"{bill.water_amount:.2f}", f"{bill.internet_amount:.2f}", f"{total_bill:.2f}"])
 
     output = si.getvalue()
     month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
@@ -284,60 +275,6 @@ def export_month_csv(bill_id: int):
     )
 
 
-@bp.get("/months/<int:bill_id>/export.xlsx")
-def export_month_xlsx(bill_id: int):
-    bill = bill_repo.get_by_id(bill_id)
-    if not bill:
-        flash("Month not found", "error")
-        return redirect(url_for("main.index"))
-    participants = participants_repo.list_all()
-    readings = reading_repo.list_for_month(bill.id)
-    adjustments = {a.participant_id: {
-        'electricity': a.zero_electricity,
-        'water': a.zero_water,
-        'internet': a.zero_internet,
-        'redis_electricity': a.redis_electricity,
-        'redis_water': a.redis_water,
-        'redis_internet': a.redis_internet,
-    } for a in adjust_repo.list_for_month(bill.id)}
-    contributions = calculator.compute_contributions(bill, readings, participants, adjustments)
-
-    wb = Workbook()
-    ws = wb.active
-    month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-    ws.title = f"{bill.year}-{month_names[bill.month-1]}"
-    ws.append(["Participant", "Electricity", "Water", "Internet", "Total", "Notes"]) 
-    for c in contributions:
-        adj = adjustments.get(c.participant.id) or {}
-        zero_parts = ''.join([ch for ch, key in [( 'E', 'electricity'), ('W','water'), ('I','internet')] if adj.get(key)])
-        custom_parts = ''.join([ch for ch, key in [( 'E', 'redis_electricity'), ('W','redis_water'), ('I','redis_internet')] if adj.get(key)])
-        notes = []
-        if zero_parts:
-            notes.append(f"Zeroed:{zero_parts}")
-        if custom_parts:
-            notes.append(f"Custom:{custom_parts}")
-        ws.append([
-            c.participant.name,
-            float(f"{c.electricity:.2f}"),
-            float(f"{c.water:.2f}"),
-            float(f"{c.internet:.2f}"),
-            float(f"{c.total:.2f}"),
-            ' '.join(notes),
-        ])
-    total_bill = bill.electricity_amount + bill.water_amount + bill.internet_amount
-    ws.append([])
-    ws.append(["Total Bill", float(f"{bill.electricity_amount:.2f}"), float(f"{bill.water_amount:.2f}"), float(f"{bill.internet_amount:.2f}"), float(f"{total_bill:.2f}")])
-
-    from io import BytesIO
-    bio = BytesIO()
-    wb.save(bio)
-    bio.seek(0)
-    filename = f"bill_{bill.year}-{month_names[bill.month-1]}.xlsx"
-    return Response(
-        bio.getvalue(),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
 
 
 @bp.post("/months/<int:bill_id>/readings")

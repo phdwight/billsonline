@@ -28,7 +28,7 @@ pip install -r requirements.txt
 flask --app wsgi:app db upgrade
 ```
 
-3. Run the app
+3. Run the app (Flask dev server)
 ```
 flask --app wsgi:app run --debug
 ```
@@ -65,8 +65,7 @@ Add your own screenshots or a short GIF to quickly show the main flows. Place fi
 - Archive months to hide them from the main list; view via the Archived page.
 - Pagination: months list is paginated (10 per page) for large histories.
 - Exports:
-	- Per-month CSV from a month’s page
-	- All months: CSV and Excel from the Home page
+	- Per-month CSV download of the Contributions table from a month’s page
  - UI polish:
  	- Action icons (Edit, Archive, Delete, CSV, Back, View, Unarchive) for quick scanning
  	- Compact mode for dense tables: add `?compact=1` to the URL or toggle from the header
@@ -75,6 +74,51 @@ Add your own screenshots or a short GIF to quickly show the main flows. Place fi
 Run unit tests for the calculation service:
 ```
 pytest -q
+```
+
+## Run with Uvicorn (ASGI)
+
+You can run this Flask app with an ASGI server using a WSGI→ASGI adapter. The ASGI app is defined in `asgi.py` and wraps the Flask WSGI app via `asgiref.wsgi.WsgiToAsgi`.
+
+1) Install (includes `uvicorn` and `asgiref`)
+```
+pip install -r requirements.txt
+```
+
+2) Dev run with auto-reload
+```
+uvicorn asgi:app --host 127.0.0.1 --port 8000 --reload
+```
+
+3) Production run (example)
+```
+uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
+```
+
+Env vars:
+- DATABASE_URL (optional; defaults to local SQLite file `billsonline.db`)
+- SECRET_KEY (set for production)
+
+Reverse proxy:
+- Put Nginx/Caddy in front for TLS and static file caching.
+
+Example `systemd` unit (optional):
+```
+[Unit]
+Description=BillsOnline (Uvicorn)
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/billsonline
+Environment="DATABASE_URL=sqlite:////opt/billsonline/billsonline.db"
+Environment="SECRET_KEY=change-me"
+ExecStart=/opt/billsonline/.venv/bin/uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## Troubleshooting
@@ -108,5 +152,6 @@ pytest -q
 - `app/routes/`: Flask routes and views
 - `app/templates/`: Jinja templates
 - `wsgi.py`: app entry point
+ - `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
 
 This structure aims to follow SOLID principles by separating concerns across layers.

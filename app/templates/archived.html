@@ -1,16 +1,21 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Archived Months</h2>
+<h2>Archived Months <span class="palette-legend"><span class="swatch primary" title="#4C4C6D"></span><span class="swatch accent1" title="#1B9C85"></span><span class="swatch light" title="#E8F6EF"></span><span class="swatch warning" title="#FFE194"></span></span></h2>
 <ul>
   {% for m in months %}
   <li>
-    {{ m.year }}-{{ '%02d'|format(m.month) }}
-    <a class="btn btn-link btn-sm" href="{{ url_for('main.month_detail', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-view"/></svg>View</a>
-  <form method="post" action="{{ url_for('main.unarchive_month', bill_id=m.id) }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-link btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-unarchive"/></svg>Unarchive</button></form>
+    {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+    <span class="badge-archived" title="Archived">
+      <svg class="icon icon-left"><use href="#icon-lock"/></svg>Archived
+    </span>
+    · {{ m.year }}-{{ month_names[m.month-1] }}
+  <a class="btn btn-link btn-sm" href="{{ url_for('main.month_detail', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-view"/></svg>View</a>
+  <a class="btn btn-link btn-sm" href="{{ url_for('main.export_month_csv', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
   </li>
   {% else %}
   <li>No archived months</li>
   {% endfor %}
+  
 </ul>
 {% if pagination.pages > 1 %}
 <nav class="pagination">
@@ -19,5 +24,9 @@
   {% if pagination.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
 </nav>
 {% endif %}
-<p><a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a></p>
+<p>
+  <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  <span class="muted">·</span>
+  <a class="btn btn-secondary" href="{{ url_for('main.download_db') }}">Download database</a>
+</p>
 {% endblock %}
