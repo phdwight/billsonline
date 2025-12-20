@@ -76,6 +76,60 @@ Run unit tests for the calculation service:
 pytest -q
 ```
 
+## Run with Docker
+
+The easiest way to run the application is with Docker.
+
+### Prerequisites
+- Docker and Docker Compose installed
+
+### Quick Start
+```bash
+# Build and start the container
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+```
+
+The app will be available at **http://localhost:1982**
+
+### Database Persistence
+
+The SQLite database is stored in a Docker volume at `/data/billsonline.db` inside the container. Your data persists across container restarts.
+
+#### Export database (backup)
+```bash
+# Copy from container to your local machine
+docker compose cp web:/data/billsonline.db ./billsonline-backup.db
+```
+
+#### Import database (restore)
+```bash
+# Copy from your local machine into the container
+docker compose cp ./billsonline.db web:/data/billsonline.db
+
+# Restart to apply
+docker compose restart
+```
+
+### Environment Variables
+
+Create a `.env` file in the project root for custom configuration:
+```
+SECRET_KEY=your-secure-random-key-here
+```
+
+### Deploy to Another Machine
+
+1. Copy the entire project folder (or clone from Git)
+2. Install Docker on the new machine
+3. Run `docker compose up -d --build`
+4. (Optional) Import your database backup using the steps above
+
 ## Run with Uvicorn (ASGI)
 
 You can run this Flask app with an ASGI server using a WSGI→ASGI adapter. The ASGI app is defined in `asgi.py` and wraps the Flask WSGI app via `asgiref.wsgi.WsgiToAsgi`.
