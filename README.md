@@ -103,10 +103,10 @@ curl -O https://raw.githubusercontent.com/phdwight/billsonline/main/docker-compo
 docker compose up -d
 
 # Or run directly
-docker run -d -p 8000:8000 --name billsonline ghcr.io/phdwight/billsonline:latest
+docker run -d -p 1982:8000 --name billsonline ghcr.io/phdwight/billsonline:latest
 ```
 
-The app will be available at **http://localhost:8000**
+The app will be available at **http://localhost:1982**
 
 ### Build Locally
 
@@ -140,22 +140,22 @@ docker compose logs -f
 docker compose down
 ```
 
-The app will be available at **http://localhost:8000**
+The app will be available at **http://localhost:1982**
 
 ### Database Persistence
 
-The SQLite database is stored in a Docker volume at `/data/billsonline.db` inside the container. Your data persists across container restarts.
+The SQLite database is stored in a Docker volume at `/app/instance/billsonline.db` inside the container. Your data persists across container restarts.
 
 #### Export database (backup)
 ```bash
 # Copy from container to your local machine
-docker compose cp web:/data/billsonline.db ./billsonline-backup.db
+docker compose cp app:/app/instance/billsonline.db ./billsonline-backup.db
 ```
 
 #### Import database (restore)
 ```bash
 # Copy from your local machine into the container
-docker compose cp ./billsonline.db web:/data/billsonline.db
+docker compose cp ./billsonline.db app:/app/instance/billsonline.db
 
 # Restart to apply
 docker compose restart
@@ -166,14 +166,24 @@ docker compose restart
 Create a `.env` file in the project root for custom configuration:
 ```
 SECRET_KEY=your-secure-random-key-here
+FLASK_ENV=production
+```
+
+Generate a secure secret key:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ### Deploy to Another Machine
 
-1. Copy the entire project folder (or clone from Git)
+1. Copy `docker-compose.yml` to the new machine (or download it):
+   ```bash
+   curl -O https://raw.githubusercontent.com/phdwight/billsonline/main/docker-compose.yml
+   ```
 2. Install Docker on the new machine
-3. Run `docker compose up -d --build`
-4. (Optional) Import your database backup using the steps above
+3. Create a `.env` file with your `SECRET_KEY`
+4. Run `docker compose up -d`
+5. (Optional) Import your database backup using the steps above
 
 ## Run with Uvicorn (ASGI)
 
