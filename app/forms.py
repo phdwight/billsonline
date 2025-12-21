@@ -20,7 +20,6 @@ class MonthForm(FlaskForm):
     )
 
     def validate_month(self, field):
-        # Only perform duplicate check when explicitly enabled by the route
         if not getattr(self, 'check_duplicates', False):
             return
         year = self.year.data
