@@ -69,9 +69,13 @@ Add your own screenshots or a short GIF to quickly show the main flows. Place fi
 - Pagination: months list is paginated (10 per page) for large histories.
 - Exports:
 	- Per-month CSV download of the Contributions table from a month’s page
- - UI polish:
- 	- Action icons (Edit, Archive, Delete, CSV, Back, View, Unarchive) for quick scanning
- 	- Compact mode for dense tables: add `?compact=1` to the URL or toggle from the header
+- Settings page:
+	- Download database backup with timestamped filename
+	- Upload and replace database (with automatic backup and confirmation)
+	- Version number display in footer (auto-incremented on push)
+- UI polish:
+	- Action icons (Edit, Archive, Delete, CSV, Back, View, Unarchive) for quick scanning
+	- Compact mode for dense tables: add `?compact=1` to the URL or toggle from the header
 
 ## Tests
 Run unit tests for the calculation service:
@@ -84,7 +88,7 @@ Run tests with coverage report:
 pytest --cov=app --cov-report=term-missing tests/
 ```
 
-Current test coverage: **87%** (134 tests)
+Current test coverage: **86%** (148 tests)
 
 ## Run with Docker
 
@@ -260,11 +264,12 @@ WantedBy=multi-user.target
 - `app/services.py`: bill calculation logic
 - `app/routes/`: Flask routes and views
 - `app/templates/`: Jinja templates
-- `tests/`: test suite (134 tests, 87% coverage)
+- `tests/`: test suite (148 tests, 86% coverage)
 - `wsgi.py`: app entry point
 - `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
 - `Dockerfile`: container build configuration
-- `.github/workflows/`: CI/CD pipelines
+- `VERSION`: application version (auto-incremented on push)
+- `.github/workflows/`: CI/CD pipelines (including version bump)
 
 This structure aims to follow SOLID principles by separating concerns across layers.
 

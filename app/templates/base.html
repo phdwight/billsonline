@@ -26,6 +26,7 @@
           <a class="btn-link" href="{{ url_for('main.new_month') }}">New Month</a>
           <a class="btn-link" href="{{ url_for('main.participants_page') }}">Participants</a>
           <a class="btn-link" href="{{ url_for('main.archived') }}">Archived</a>
+          <a class="btn-link" href="{{ url_for('main.settings') }}">Settings</a>
           <a class="btn-link" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ 'Compact: Off' if request.args.get('compact') else 'Compact: On' }}</a>
         </nav>
       </div>
@@ -51,5 +52,8 @@
       })();
     </script>
     {% block scripts %}{% endblock %}
+    <footer class="version-footer">
+      <span>v{{ app_version }}</span>
+    </footer>
   </body>
   </html>

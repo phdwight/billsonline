@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="stack">
+  <h1>Settings</h1>
+  
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="upload-status">
+    {% for category, message in messages %}
+      <div class="status-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  
+  <div class="card">
+    <h2 class="section-title">Database Management</h2>
+    
+    <div class="stack">
+      <div class="db-section">
+        <h3>Download Database</h3>
+        <p class="muted">Download a backup of the current database.</p>
+        <a href="{{ url_for('main.download_database') }}" class="btn btn-primary">
+          <svg class="icon icon-left"><use href="#icon-csv"/></svg>
+          Download Database
+        </a>
+      </div>
+      
+      <hr class="divider">
+      
+      <div class="db-section">
+        <h3>Upload Database</h3>
+        <p class="muted">Replace the current database with an uploaded file. A backup will be created automatically.</p>
+        <p class="warning-text">⚠️ Warning: This will replace all existing data!</p>
+        
+        <form method="post" action="{{ url_for('main.upload_database') }}" enctype="multipart/form-data" id="upload-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="file-input-label">
+            <input type="file" name="database" accept=".db" required id="db-file-input">
+            <span class="btn btn-secondary" id="file-label">
+              <svg class="icon icon-left"><use href="#icon-csv"/></svg>
+              Select & Upload .db file
+            </span>
+          </label>
+        </form>
+        <div id="upload-indicator" class="upload-indicator hidden">
+          <span class="spinner"></span> Uploading...
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('db-file-input').addEventListener('change', function(e) {
+    if (this.files.length > 0) {
+      const fileName = this.files[0].name;
+      if (confirm('Are you sure you want to replace the database with "' + fileName + '"? This action cannot be undone.')) {
+        document.getElementById('file-label').classList.add('hidden');
+        document.getElementById('upload-indicator').classList.remove('hidden');
+        document.getElementById('upload-form').submit();
+      } else {
+        this.value = '';
+      }
+    }
+  });
+</script>
+{% endblock %}

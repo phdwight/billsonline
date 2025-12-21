@@ -1,0 +1,45 @@
+name: Bump Version
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version
+        run: |
+          # Read current version
+          VERSION=$(cat VERSION)
+          
+          # Split into parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          
+          # Create new version
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          
+          echo "Bumping version from $VERSION to $NEW_VERSION"
+          echo "$NEW_VERSION" > VERSION
+
+      - name: Commit and push version bump
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add VERSION
+          git diff --staged --quiet || git commit -m "chore: bump version to $(cat VERSION) [skip ci]"
+          git push

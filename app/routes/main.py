@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import csv
+import os
+import shutil
 from io import StringIO
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import urlparse, unquote
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, send_file, current_app
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
 
 from ..extensions import db
 from ..models import BillComponent
@@ -768,3 +771,67 @@ def submit_readings(bill_id: int):
 
 
 # Legacy adjustments routes removed: adjustments are per-component only.
+
+
+@bp.get("/settings")
+def settings():
+    """Settings page with database management options."""
+    return render_template("settings.html")
+
+
+@bp.get("/download-database")
+def download_database():
+    """Download the current database file."""
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if db_uri.startswith("sqlite:///"):
+        db_path = db_uri.replace("sqlite:///", "")
+        if os.path.exists(db_path):
+            return send_file(
+                db_path,
+                as_attachment=True,
+                download_name=f"billsonline_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            )
+    flash("Database file not found or not using SQLite", "error")
+    return redirect(url_for("main.settings"))
+
+
+@bp.post("/upload-database")
+def upload_database():
+    """Upload and replace the database file."""
+    if "database" not in request.files:
+        flash("No file uploaded", "error")
+        return redirect(url_for("main.settings"))
+    
+    file = request.files["database"]
+    if file.filename == "":
+        flash("No file selected", "error")
+        return redirect(url_for("main.settings"))
+    
+    if not file.filename.endswith(".db"):
+        flash("Invalid file type. Please upload a .db file", "error")
+        return redirect(url_for("main.settings"))
+    
+    db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if not db_uri.startswith("sqlite:///"):
+        flash("Database replacement only supported for SQLite", "error")
+        return redirect(url_for("main.settings"))
+    
+    db_path = db_uri.replace("sqlite:///", "")
+    
+    # Create backup of current database
+    if os.path.exists(db_path):
+        backup_path = f"{db_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        shutil.copy2(db_path, backup_path)
+    
+    # Close all database connections
+    db.session.remove()
+    db.engine.dispose()
+    
+    try:
+        # Save the uploaded file
+        file.save(db_path)
+        flash("Database replaced successfully! Please refresh the page.", "success")
+    except Exception as e:
+        flash(f"Error replacing database: {str(e)}", "error")
+    
+    return redirect(url_for("main.settings"))
