@@ -1,5 +1,8 @@
 # Bills Online
 
+[![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
+[![Test Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](tests/)
+
 A simple Flask + SQLite web app to split monthly bills among participants.
 
 Rules implemented:
@@ -76,9 +79,51 @@ Run unit tests for the calculation service:
 pytest -q
 ```
 
+Run tests with coverage report:
+```
+pytest --cov=app --cov-report=term-missing tests/
+```
+
+Current test coverage: **87%** (134 tests)
+
 ## Run with Docker
 
 The easiest way to run the application is with Docker.
+
+### Using Pre-built Image (Recommended)
+
+Pull and run the latest image from GitHub Container Registry:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/phdwight/billsonline:latest
+
+# Run with docker-compose (recommended)
+curl -O https://raw.githubusercontent.com/phdwight/billsonline/main/docker-compose.yml
+docker compose up -d
+
+# Or run directly
+docker run -d -p 8000:8000 --name billsonline ghcr.io/phdwight/billsonline:latest
+```
+
+The app will be available at **http://localhost:8000**
+
+### Build Locally
+
+```bash
+# Clone the repository
+git clone https://github.com/phdwight/billsonline.git
+cd billsonline
+
+# Build and start the container
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop the container
+docker compose down
+```
 
 ### Prerequisites
 - Docker and Docker Compose installed
@@ -95,7 +140,7 @@ docker compose logs -f
 docker compose down
 ```
 
-The app will be available at **http://localhost:1982**
+The app will be available at **http://localhost:8000**
 
 ### Database Persistence
 
@@ -205,7 +250,17 @@ WantedBy=multi-user.target
 - `app/services.py`: bill calculation logic
 - `app/routes/`: Flask routes and views
 - `app/templates/`: Jinja templates
+- `tests/`: test suite (134 tests, 87% coverage)
 - `wsgi.py`: app entry point
- - `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
+- `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
+- `Dockerfile`: container build configuration
+- `.github/workflows/`: CI/CD pipelines
 
 This structure aims to follow SOLID principles by separating concerns across layers.
+
+## CI/CD
+
+This project uses GitHub Actions for continuous integration:
+
+- **Docker Build**: On every push to `main`/`master`, a Docker image is automatically built and pushed to GitHub Container Registry (`ghcr.io/phdwight/billsonline`)
+- **Tags**: Images are tagged with `latest`, branch name, git SHA, and semantic versions (e.g., `v1.0.0`)
