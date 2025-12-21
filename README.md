@@ -262,5 +262,18 @@ This structure aims to follow SOLID principles by separating concerns across lay
 
 This project uses GitHub Actions for continuous integration:
 
+- **Tests**: All tests must pass before Docker build proceeds (minimum 80% coverage required)
 - **Docker Build**: On every push to `main`/`master`, a Docker image is automatically built and pushed to GitHub Container Registry (`ghcr.io/phdwight/billsonline`)
 - **Tags**: Images are tagged with `latest`, branch name, git SHA, and semantic versions (e.g., `v1.0.0`)
+- **Multi-platform**: Images are built for both `linux/amd64` (Intel/AMD) and `linux/arm64` (Apple Silicon)
+
+### Branch Protection (Recommended)
+
+To enforce that tests pass before merging, configure branch protection in GitHub:
+
+1. Go to **Settings** → **Branches** → **Add rule**
+2. Set **Branch name pattern** to `main` (or `master`)
+3. Enable **Require status checks to pass before merging**
+4. Search and select **test** as a required status check
+5. (Optional) Enable **Require branches to be up to date before merging**
+6. Save changes
