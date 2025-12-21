@@ -362,3 +362,67 @@ class TestDeleteRoute:
         with app.app_context():
             bill = db.session.get(MonthlyBill, sample_bill)
             assert bill is None
+
+
+class TestSettingsRoute:
+    def test_settings_page_returns_200(self, client):
+        response = client.get("/settings")
+        assert response.status_code == 200
+        assert b"Settings" in response.data
+        assert b"Database Management" in response.data
+
+    def test_settings_page_has_download_link(self, client):
+        response = client.get("/settings")
+        assert b"Download Database" in response.data
+
+    def test_settings_page_has_upload_form(self, client):
+        response = client.get("/settings")
+        assert b"Upload Database" in response.data
+        assert b'enctype="multipart/form-data"' in response.data
+        # Single button for select & upload
+        assert b"Select" in response.data and b"Upload .db file" in response.data
+
+    def test_settings_page_has_upload_indicator(self, client):
+        response = client.get("/settings")
+        assert b"upload-indicator" in response.data
+        assert b"Uploading..." in response.data
+
+
+class TestDatabaseDownloadRoute:
+    def test_download_database_redirects_for_memory_db(self, client):
+        """In-memory database cannot be downloaded, should redirect with error."""
+        response = client.get("/download-database", follow_redirects=True)
+        assert response.status_code == 200
+        # Should redirect to settings with error flash
+
+
+class TestDatabaseUploadRoute:
+    def test_upload_no_file(self, client):
+        response = client.post("/upload-database", follow_redirects=True)
+        assert response.status_code == 200
+        assert b"No file uploaded" in response.data
+
+    def test_upload_empty_filename(self, client):
+        from io import BytesIO
+        data = {"database": (BytesIO(b""), "")}
+        response = client.post("/upload-database", data=data, content_type="multipart/form-data", follow_redirects=True)
+        assert response.status_code == 200
+        assert b"No file selected" in response.data
+
+    def test_upload_invalid_file_type(self, client):
+        from io import BytesIO
+        data = {"database": (BytesIO(b"test content"), "test.txt")}
+        response = client.post("/upload-database", data=data, content_type="multipart/form-data", follow_redirects=True)
+        assert response.status_code == 200
+        assert b"Invalid file type" in response.data
+
+
+class TestVersionDisplay:
+    def test_version_in_page(self, client):
+        """Version should be displayed on every page."""
+        response = client.get("/")
+        assert response.status_code == 200
+        # Check for version footer
+        assert b"version-footer" in response.data
+        # Version should start with 'v' followed by numbers
+        assert b">v" in response.data

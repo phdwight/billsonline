@@ -194,3 +194,57 @@ body.compact .btn-sm { padding: .25rem .45rem; font-size: .8rem; }
 .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; }
 .icon-left { margin-right: .4em; }
 .icon-right { margin-left: .4em; }
+
+/* Version footer */
+.version-footer {
+	position: fixed;
+	bottom: 0.5rem;
+	right: 0.75rem;
+	font-size: 0.7rem;
+	color: var(--muted);
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* Settings page */
+.db-section { margin-bottom: 1rem; }
+.db-section h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+.warning-text { color: var(--warning); font-size: 0.9rem; margin: 0.5rem 0; }
+.upload-form { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.file-input-label input[type="file"] { display: none; }
+.file-input-label .btn { cursor: pointer; }
+.btn-danger { background: var(--error); color: white; }
+.btn-danger:hover { background: #dc2626; }
+
+/* Upload status indicator */
+.hidden { display: none !important; }
+.upload-indicator { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); }
+.spinner {
+	width: 1rem;
+	height: 1rem;
+	border: 2px solid var(--border);
+	border-top-color: var(--primary);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Upload status messages */
+.upload-status { margin-bottom: 1rem; }
+.status-success {
+	background: rgba(27, 156, 133, 0.2);
+	border: 1px solid var(--success);
+	color: var(--success);
+	padding: 0.75rem 1rem;
+	border-radius: var(--radius);
+	font-weight: 500;
+}
+.status-error {
+	background: rgba(239, 68, 68, 0.2);
+	border: 1px solid var(--error);
+	color: var(--error);
+	padding: 0.75rem 1rem;
+	border-radius: var(--radius);
+	font-weight: 500;
+}
