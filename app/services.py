@@ -1,21 +1,27 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Dict, List, Iterable
+
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from .models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
 
 
+class DynamicContribution(BaseModel):
+    """Pydantic model for participant contribution data."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    
+    participant: Participant
+    components: Dict[str, float]
+    
+    @computed_field
+    @property
+    def total(self) -> float:
+        return round(sum(self.components.values()), 2)
+
+
 class BillCalculator:
     # ========================= Dynamic components API =========================
-    @dataclass
-    class DynamicContribution:
-        participant: Participant
-        components: Dict[str, float]
-
-        @property
-        def total(self) -> float:
-            return round(sum(self.components.values()), 2)
 
     def compute_contributions_dynamic(
         self,
@@ -24,7 +30,7 @@ class BillCalculator:
         readings: List[MeterReading],
         participants: List[Participant],
         component_adjustments: Iterable[ComponentAdjustment] | None = None,
-    ) -> List["BillCalculator.DynamicContribution"]:
+    ) -> List[DynamicContribution]:
         """Compute contributions for arbitrary components.
 
         components: BillComponent objects with amount and split_method ('usage'|'equal').
@@ -33,7 +39,7 @@ class BillCalculator:
         """
         if not participants or not components:
             return [
-                BillCalculator.DynamicContribution(participant=p, components={})
+                DynamicContribution(participant=p, components={})
                 for p in participants
             ]
 
@@ -99,10 +105,10 @@ class BillCalculator:
                 per_comp_amounts[p.id][comp.name] = round(final_map.get(p.id, 0.0), 2)
 
         # Build DynamicContribution objects
-        dyn_contribs: List[BillCalculator.DynamicContribution] = []
+        dyn_contribs: List[DynamicContribution] = []
         for p in participants:
             dyn_contribs.append(
-                BillCalculator.DynamicContribution(participant=p, components=per_comp_amounts.get(p.id, {}))
+                DynamicContribution(participant=p, components=per_comp_amounts.get(p.id, {}))
             )
         return dyn_contribs
 
