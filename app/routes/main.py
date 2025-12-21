@@ -39,6 +39,17 @@ calculator = BillCalculator()
 
 @bp.get("/")
 def index():
+    """Home page showing the latest month's details."""
+    latest_bill = bill_repo.get_latest(archived=False)
+    if not latest_bill:
+        # No bills yet, redirect to admin
+        return redirect(url_for("main.admin"))
+    return redirect(url_for("main.month_detail", bill_id=latest_bill.id))
+
+
+@bp.get("/admin")
+def admin():
+    """Admin page with all management features."""
     page = int(request.args.get("page", 1) or 1)
     per_page = 10
     pagination = bill_repo.list_paginated(page=page, per_page=per_page, archived=False)
@@ -48,7 +59,7 @@ def index():
         today = date.today()
         form.year.data = today.year
         form.month.data = today.month
-    return render_template("index.html", pagination=pagination, months=pagination.items, participants=participants, form=form)
+    return render_template("admin.html", pagination=pagination, months=pagination.items, participants=participants, form=form)
 
 
 @bp.get("/months/new")

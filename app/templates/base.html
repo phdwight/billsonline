@@ -23,11 +23,7 @@
         <div class="brand"><span class="logo"></span> Bills Online</div>
         <nav>
           <a class="btn-link" href="{{ url_for('main.index') }}">Home</a>
-          <a class="btn-link" href="{{ url_for('main.new_month') }}">New Month</a>
-          <a class="btn-link" href="{{ url_for('main.participants_page') }}">Participants</a>
-          <a class="btn-link" href="{{ url_for('main.archived') }}">Archived</a>
           <a class="btn-link" href="{{ url_for('main.settings') }}">Settings</a>
-          <a class="btn-link" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ 'Compact: Off' if request.args.get('compact') else 'Compact: On' }}</a>
         </nav>
       </div>
     </header>
@@ -47,6 +43,12 @@
     </main>
     <script>
       (function(){
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme && savedTheme !== 'default') {
+          document.body.classList.add('theme-' + savedTheme);
+        }
+        // Compact mode
         const params = new URLSearchParams(location.search);
         if (params.get('compact') === '1') document.body.classList.add('compact');
       })();

@@ -39,6 +39,10 @@ flask --app wsgi:app run --debug
 Then open http://localhost:5000 in your browser.
 
 ## Usage
+
+The **Home** page shows the latest month's details directly for quick access.
+
+For administrative tasks, navigate to **Admin**:
 1. Add participants.
 2. Create a month with total amounts for electricity, water, and internet.
 3. Open the month and enter previous and current meter readings per participant.
@@ -50,9 +54,13 @@ All data is stored in a local SQLite database file `billsonline.db` in the proje
 ## Screenshots / GIF
 Add your own screenshots or a short GIF to quickly show the main flows. Place files under `docs/screenshots/` and update the paths below. You can use the helper script `scripts/record_gif.sh` (macOS + ffmpeg) to capture a GIF.
 
-- Home (months list and create month)
+- Home (latest month detail)
 
 	![Home](docs/screenshots/home.png)
+
+- Admin (manage months and participants)
+
+	![Admin](docs/screenshots/admin.png)
 
 - Month detail (readings, adjustments, contributions)
 
@@ -88,7 +96,7 @@ Run tests with coverage report:
 pytest --cov=app --cov-report=term-missing tests/
 ```
 
-Current test coverage: **86%** (148 tests)
+Current test coverage: **86%** (150 tests)
 
 ## Run with Docker
 
@@ -264,7 +272,7 @@ WantedBy=multi-user.target
 - `app/services.py`: bill calculation logic
 - `app/routes/`: Flask routes and views
 - `app/templates/`: Jinja templates
-- `tests/`: test suite (148 tests, 86% coverage)
+- `tests/`: test suite (150 tests, 86% coverage)
 - `wsgi.py`: app entry point
 - `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
 - `Dockerfile`: container build configuration

@@ -59,18 +59,43 @@ def sample_bill(app):
 
 
 class TestIndexRoute:
-    def test_index_returns_200(self, client):
+    def test_index_redirects_to_admin_when_no_bills(self, client, app):
+        """Home should redirect to admin when there are no bills."""
+        # Ensure no bills exist
+        with app.app_context():
+            from app.models import MonthlyBill
+            MonthlyBill.query.delete()
+            db.session.commit()
         response = client.get("/")
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert "/admin" in response.location
 
-    def test_index_pagination(self, client, app):
+    def test_index_redirects_to_latest_month(self, client, app):
+        """Home should redirect to the latest month detail."""
+        with app.app_context():
+            bill = MonthlyBill(year=2025, month=6, electricity_amount=100, water_amount=50, internet_amount=30)
+            db.session.add(bill)
+            db.session.commit()
+            bill_id = bill.id
+        response = client.get("/")
+        assert response.status_code == 302
+        assert f"/months/{bill_id}" in response.location
+
+
+class TestAdminRoute:
+    def test_admin_returns_200(self, client):
+        response = client.get("/admin")
+        assert response.status_code == 200
+        assert b"Admin" in response.data
+
+    def test_admin_pagination(self, client, app):
         # Create some bills
         with app.app_context():
             for m in range(1, 6):
                 bill = MonthlyBill(year=2025, month=m, electricity_amount=100, water_amount=50, internet_amount=30)
                 db.session.add(bill)
             db.session.commit()
-        response = client.get("/?page=1")
+        response = client.get("/admin?page=1")
         assert response.status_code == 200
 
 
@@ -420,7 +445,7 @@ class TestDatabaseUploadRoute:
 class TestVersionDisplay:
     def test_version_in_page(self, client):
         """Version should be displayed on every page."""
-        response = client.get("/")
+        response = client.get("/admin")
         assert response.status_code == 200
         # Check for version footer
         assert b"version-footer" in response.data

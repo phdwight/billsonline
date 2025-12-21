@@ -42,6 +42,13 @@ class MonthlyBillRepository:
     def list_all(self) -> list[MonthlyBill]:
         return MonthlyBill.query.filter_by(archived=False).order_by(MonthlyBill.year.desc(), MonthlyBill.month.desc()).all()
 
+    def get_latest(self, archived: bool = False) -> Optional[MonthlyBill]:
+        return (
+            MonthlyBill.query.filter_by(archived=archived)
+            .order_by(MonthlyBill.year.desc(), MonthlyBill.month.desc())
+            .first()
+        )
+
     def list_paginated(self, page: int, per_page: int, archived: bool = False):
         return (
             MonthlyBill.query.filter_by(archived=archived)
