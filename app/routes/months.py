@@ -286,13 +286,6 @@ def archive(bill_id: int):
     return redirect(url_for("home.index"))
 
 
-@bp.post("/<int:bill_id>/unarchive")
-def unarchive(bill_id: int):
-    """POST /months/<id>/unarchive - Unarchive a month."""
-    flash("Unarchiving is not allowed.", "error")
-    return redirect(url_for("months.archived"))
-
-
 @bp.get("/archived")
 def archived():
     """GET /months/archived - List archived months."""
