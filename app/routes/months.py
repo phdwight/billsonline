@@ -130,10 +130,20 @@ def create():
         flash(f"A month for {year}-{month:02d} already exists.", "error")
         return redirect(url_for("home.index"))
 
-    # Default membership: include all current participants
+    # Get selected participants from form
+    selected_participant_ids = request.form.getlist('selected_participants')
+    if selected_participant_ids:
+        # Convert to integers
+        selected_participant_ids = [int(pid) for pid in selected_participant_ids if pid]
+    
+    # Default: if no selection was made, include all participants (backward compatibility)
+    if not selected_participant_ids:
+        selected_participant_ids = [p.id for p in participants]
+    
+    # Add only selected participants to the month
     try:
-        for p in participants:
-            month_part_repo.add(bill.id, p.id)
+        for pid in selected_participant_ids:
+            month_part_repo.add(bill.id, pid)
     except Exception:
         pass
 

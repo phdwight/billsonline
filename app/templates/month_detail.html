@@ -37,6 +37,7 @@
       </thead>
       <tbody>
         {% for p in participants %}
+        {% if p.id in member_ids %}
         {% set r = readings_by_pid.get(p.id) %}
         <tr>
           <td>{{ p.name }}</td>
@@ -44,6 +45,7 @@
           <td>{{ r.reading_current if r else '' }}</td>
           <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -61,6 +63,7 @@
       </thead>
       <tbody>
         {% for p in participants %}
+  {% if p.id in member_ids %}
   {% set r = readings_by_pid.get(p.id) %}
         <tr>
           <td>{{ p.name }}</td>
@@ -71,6 +74,7 @@
           <td><input type="number" name="current_{{ p.id }}" step="0.01" value="{{ r.reading_current if r else '' }}"></td>
           <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
         </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
