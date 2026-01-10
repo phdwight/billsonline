@@ -2,3 +2,7 @@
 .coverage
 .DS_Store
 .coverage
+.venv/
+venv/
+__pycache__/
+*.db

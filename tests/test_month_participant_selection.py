@@ -239,3 +239,18 @@ class TestMonthParticipantSelection:
             month_participants = MonthParticipant.query.filter_by(month_id=bill_id).all()
             assert len(month_participants) == 1
             assert month_participants[0].participant_id == three_participants[0]
+
+    def test_new_month_form_has_participant_selection_ui(self, client, app, three_participants):
+        """Test that the new month form includes UI elements for participant selection."""
+        response = client.get("/months/new")
+        assert response.status_code == 200
+        
+        # Check for the presence of UI helper elements
+        assert b"Select All" in response.data
+        assert b"Deselect All" in response.data
+        assert b"Uncheck to exclude a participant" in response.data
+        
+        # Check that remove buttons are present for each participant
+        assert b'title="Remove Alice"' in response.data or b"Remove Alice" in response.data
+        assert b'title="Remove Bob"' in response.data or b"Remove Bob" in response.data
+        assert b'title="Remove Charlie"' in response.data or b"Remove Charlie" in response.data
