@@ -11,6 +11,18 @@
       <label>Year {{ form.year(min=2000, max=3000, required=True) }}</label>
       <label>Month {{ form.month(required=True) }}</label>
     </div>
+    <fieldset class="card" style="margin-top:.5rem;">
+      <legend><strong>👥 Select Participants for this Month</strong></legend>
+      <div class="muted"><small>Choose which participants will be included in this month's bill.</small></div>
+      <div class="row" style="margin-top:.5rem;">
+        {% for p in participants %}
+        <label style="display:flex; align-items:center; gap:.25rem;">
+          <input type="checkbox" name="selected_participants" value="{{ p.id }}" checked onchange="toggleParticipantVisibility({{ p.id }}, this.checked)">
+          <span>{{ p.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
     <div class="row">
       <label>Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}
         <div class="muted"><small>Split: 
@@ -45,7 +57,7 @@
         <div class="muted"><small>Set per-person values for Electricity (<span id="legacy_electricity_mode">percentage</span>).</small></div>
         <div class="row">
           {% for p in participants %}
-          <label><small>{{ p.name }}</small>
+          <label class="participant-field participant-{{ p.id }}" style="display:flex;"><small>{{ p.name }}</small>
             <input type="number" step="0.01" min="0" name="legacy_electricity_dist_{{ p.id }}" placeholder="0">
           </label>
           {% endfor %}
@@ -55,7 +67,7 @@
         <div class="muted"><small>Set per-person values for Water (<span id="legacy_water_mode">percentage</span>).</small></div>
         <div class="row">
           {% for p in participants %}
-          <label><small>{{ p.name }}</small>
+          <label class="participant-field participant-{{ p.id }}" style="display:flex;"><small>{{ p.name }}</small>
             <input type="number" step="0.01" min="0" name="legacy_water_dist_{{ p.id }}" placeholder="0">
           </label>
           {% endfor %}
@@ -65,7 +77,7 @@
         <div class="muted"><small>Set per-person values for Internet (<span id="legacy_internet_mode">percentage</span>).</small></div>
         <div class="row">
           {% for p in participants %}
-          <label><small>{{ p.name }}</small>
+          <label class="participant-field participant-{{ p.id }}" style="display:flex;"><small>{{ p.name }}</small>
             <input type="number" step="0.01" min="0" name="legacy_internet_dist_{{ p.id }}" placeholder="0">
           </label>
           {% endfor %}
@@ -135,7 +147,7 @@ function toggleCompEditorForRow(selectEl){
       <div class="muted"><small>Set per-person values (<span class="mode">${val}</span>).</small></div>
       <div class="row">
         {% for p in participants %}
-        <label><small>{{ p.name }}</small>
+        <label class="participant-field participant-{{ p.id }}" style="display:flex;"><small>{{ p.name }}</small>
           <input type="number" step="0.01" min="0" name="comp_dist___IDX___{{ p.id }}" placeholder="0">
         </label>
         {% endfor %}
@@ -248,6 +260,19 @@ function updateLegacySum(kind){
   }
 }
 ['electricity','water','internet'].forEach(attachLegacyHandlers);
+function toggleParticipantVisibility(participantId, isVisible) {
+  const fields = document.querySelectorAll(`.participant-${participantId}`);
+  fields.forEach(field => {
+    field.style.display = isVisible ? 'flex' : 'none';
+    // Clear values when hiding
+    if (!isVisible) {
+      const inputs = field.querySelectorAll('input[type="number"]');
+      inputs.forEach(inp => inp.value = '');
+    }
+  });
+  // Recalculate sums after toggling
+  ['electricity', 'water', 'internet'].forEach(updateLegacySum);
+}
 function validateCreationDistributions(form){
   let ok = true;
   form.querySelectorAll('.field-error-inline').forEach(e => e.remove());
@@ -256,6 +281,15 @@ function validateCreationDistributions(form){
     small.className = 'field-error field-error-inline';
     small.textContent = msg;
     afterEl.parentElement.appendChild(small);
+  }
+  // Check that at least one participant is selected
+  const selectedParticipants = form.querySelectorAll('input[name="selected_participants"]:checked');
+  if (selectedParticipants.length === 0) {
+    ok = false;
+    const fieldset = form.querySelector('fieldset');
+    if (fieldset) {
+      showError(fieldset.querySelector('legend'), 'At least one participant must be selected');
+    }
   }
   const legacy = [
     {kind: 'electricity', select: '#legacy_electricity_split', amount: form.querySelector('[name="electricity_amount"]')},
