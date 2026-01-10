@@ -1,7 +1,7 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/tests-172%20passing-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/tests-189%20passing-brightgreen)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -204,7 +204,7 @@ To exclude Alice from Internet for January:
 
 ## Tests
 
-The project includes comprehensive test coverage with **172 tests** across unit tests and BDD tests.
+The project includes comprehensive test coverage with **189 tests** across unit tests, BDD tests, and UI tests.
 
 ### Run All Tests
 
@@ -263,7 +263,7 @@ Scenario: Add an equally split component
 
 ```bash
 # Run only unit tests
-pytest tests/ --ignore=tests/bdd/
+pytest tests/ --ignore=tests/bdd/ --ignore=tests/ui/
 
 # Run only BDD tests
 pytest tests/bdd/
@@ -274,6 +274,52 @@ pytest tests/test_calculator.py -v
 # Run tests matching a pattern
 pytest -k "adjustment" -v
 ```
+
+### UI Tests (Playwright)
+
+Located in `tests/ui/` with Gherkin feature files in `tests/ui/features/`. These tests use **pytest-bdd** with **Playwright** for browser automation.
+
+| Feature File | Scenarios | Description |
+|--------------|-----------|-------------|
+| `ui_participants.feature` | 5 | Participant UI flows |
+| `ui_months.feature` | 3 | Monthly bill creation/archiving |
+| `ui_components.feature` | 3 | Adding/editing components |
+| `ui_meter_readings.feature` | 2 | Meter reading entry |
+| `ui_navigation.feature` | 4 | Page navigation |
+
+#### Run UI Tests
+
+```bash
+# Run all UI tests (headless by default)
+pytest tests/ui/ -v
+
+# Run with visible browser (headed mode)
+pytest tests/ui/ -v --headed
+
+# Slow down execution to visually follow the test (in ms)
+pytest tests/ui/ -v --headed --slowmo=500
+
+# Run a specific UI test file
+pytest tests/ui/steps/test_navigation_steps.py -v --headed
+
+# Run with browser debug mode (pauses on failure)
+PWDEBUG=1 pytest tests/ui/ -v
+
+# Run specific browser (default is chromium)
+pytest tests/ui/ -v --browser=firefox
+pytest tests/ui/ -v --browser=webkit
+```
+
+#### Playwright Options Reference
+
+| Option | Description |
+|--------|-------------|
+| `--headed` | Run with visible browser window |
+| `--slowmo=<ms>` | Slow down operations by specified milliseconds |
+| `--browser=<name>` | Browser to use: `chromium`, `firefox`, or `webkit` |
+| `--browser-channel=<channel>` | Use specific browser channel (e.g., `chrome`, `msedge`) |
+| `--tracing=on` | Enable Playwright tracing for debugging |
+| `PWDEBUG=1` | Environment variable to enable Playwright Inspector |
 
 ---
 

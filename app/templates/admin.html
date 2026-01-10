@@ -1,36 +1,47 @@
 {% extends 'base.html' %}
 {% block content %}
 <section class="stack">
-  <h1>Admin</h1>
+  <div class="page-header">
+    <h1>🔧 Admin</h1>
+    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Home</a>
+  </div>
   <div class="admin-nav">
-    <a class="btn btn-secondary" href="{{ url_for('months.new') }}">New Month</a>
-    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">Manage Participants</a>
-    <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">Archived Months</a>
-    <a class="btn btn-secondary" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ 'Compact: Off' if request.args.get('compact') else 'Compact: On' }}</a>
+    <a class="btn btn-secondary" href="{{ url_for('months.new') }}">➕ New Month</a>
+    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">👥 Participants</a>
+    <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">📦 Archived</a>
+    <a class="btn btn-secondary" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ '📐 Compact: Off' if request.args.get('compact') else '📐 Compact: On' }}</a>
   </div>
 </section>
 <section class="grid">
     <div class="card">
-      <h2 class="section-title">Participants</h2>
+      <div class="card-header">
+        <h2 class="section-title">👥 Participants</h2>
+        <a href="{{ url_for('participants.index') }}" class="btn btn-link btn-sm">Manage</a>
+      </div>
       <form method="post" action="{{ url_for('participants.create') }}" class="stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>
-          Name
-          <input type="text" name="name" placeholder="e.g., Alice" required>
-        </label>
-        <button class="btn btn-primary" type="submit">Add Participant</button>
+        <div class="input-with-button">
+          <input type="text" name="name" placeholder="Add new participant..." required>
+          <button class="btn btn-primary btn-icon" type="submit" title="Add participant">+</button>
+        </div>
       </form>
-      <ul>
+      <ul class="participant-list">
         {% for p in participants %}
-        <li>
+        <li class="participant-item">
+          <span class="participant-avatar">{{ p.name[0].upper() }}</span>
           {{ p.name }}
         </li>
+        {% else %}
+        <li class="empty-state">No participants yet</li>
         {% endfor %}
       </ul>
     </div>
 
     <div class="card">
-      <h2 class="section-title">Months</h2>
+      <div class="card-header">
+        <h2 class="section-title">📅 Months</h2>
+        <a href="{{ url_for('months.archived') }}" class="btn btn-link btn-sm">📦 Archived</a>
+      </div>
   <form method="post" action="{{ url_for('months.create') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
         {{ form.csrf_token }}
         <div class="row">
@@ -127,27 +138,37 @@
           </div>
           <button type="button" class="btn btn-secondary" onclick="addCompRow(this)">+ Add another</button>
         </details>
-        <button class="btn btn-primary" type="submit">Create Month</button>
+        <button class="btn btn-primary" type="submit">✨ Create Month</button>
       </form>
 
-      <ul>
+      <ul class="month-list">
         {% for m in months %}
-        <li>
+        <li class="month-item">
           {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-          <a href="{{ url_for('months.show', bill_id=m.id) }}">{{ m.year }}-{{ month_names[m.month-1] }}</a>
-          <form method="post" action="{{ url_for('months.archive', bill_id=m.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-link btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-archive"/></svg>Archive</button>
-          </form>
-          <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</a>
-          <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
-          </form>
-          <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
+          <a href="{{ url_for('months.show', bill_id=m.id) }}" class="month-link">
+            <span class="month-icon">📆</span>
+            <span class="month-name">{{ m.year }}-{{ month_names[m.month-1] }}</span>
+          </a>
+          <div class="month-actions">
+            <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-action" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg><span class="action-label">Edit</span></a>
+            <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-action" title="Export CSV"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">CSV</span></a>
+            <div class="action-more">
+              <button type="button" class="btn btn-action btn-more" title="More options" onclick="toggleMoreActions(this)">⋮</button>
+              <div class="more-actions-dropdown">
+                <form method="post" action="{{ url_for('months.archive', bill_id=m.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="dropdown-item" type="submit"><svg class="icon icon-left"><use href="#icon-archive"/></svg>Archive</button>
+                </form>
+                <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" onsubmit="return confirm('Delete this month?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="dropdown-item dropdown-item-danger"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
+                </form>
+              </div>
+            </div>
+          </div>
         </li>
         {% else %}
-        <li>No months yet</li>
+        <li class="empty-state">No months yet. Create one above!</li>
         {% endfor %}
       </ul>
         {% if pagination.pages > 1 %}
@@ -159,10 +180,9 @@
       {% endif %}
     </div>
   </section>
-  <section class="card" style="margin-top: var(--gap);">
-    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">Manage participants</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">Archived months</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Download database</a>
+  <section class="card quick-links" style="margin-top: var(--gap);">
+    <a class="btn btn-secondary" href="{{ url_for('settings.index') }}">⚙️ Settings</a>
+    <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">💾 Backup Database</a>
   </section>
 {% endblock %}
 {% block scripts %}
@@ -170,5 +190,18 @@
 <script>
 // Initialize with participant template
 initAdmin(`{% for p in participants %}<label><small>{{ p.name }}</small><input type="number" step="0.01" min="0" name="comp_dist___IDX___{{ p.id }}" placeholder="0"></label>{% endfor %}`);
+
+// More actions dropdown toggle
+function toggleMoreActions(btn) {
+  const container = btn.closest('.action-more');
+  const wasOpen = container.classList.contains('open');
+  document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  if (!wasOpen) container.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.action-more')) {
+    document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  }
+});
 </script>
 {% endblock %}

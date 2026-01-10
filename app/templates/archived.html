@@ -1,36 +1,63 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Archived Months <span class="palette-legend"><span class="swatch primary" title="#4C4C6D"></span><span class="swatch accent1" title="#1B9C85"></span><span class="swatch light" title="#E8F6EF"></span><span class="swatch warning" title="#FFE194"></span></span></h2>
-<ul>
-  {% for m in months %}
-  <li>
-    {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-    <span class="badge-archived" title="Archived">
-      <svg class="icon icon-left"><use href="#icon-lock"/></svg>Archived
-    </span>
-    · {{ m.year }}-{{ month_names[m.month-1] }}
-  <a class="btn btn-link btn-sm" href="{{ url_for('months.show', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-view"/></svg>View</a>
-  <a class="btn btn-link btn-sm" href="{{ url_for('months.export', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
-  <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
-  </form>
-  </li>
-  {% else %}
-  <li>No archived months</li>
-  {% endfor %}
+<div class="card">
+  <div class="card-header">
+    <h2 class="section-title">📦 Archived Months</h2>
+    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  </div>
   
-</ul>
-{% if pagination.pages > 1 %}
-<nav class="pagination">
-  {% if pagination.has_prev %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.prev_num }}">« Prev</a>{% endif %}
-  <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
-  {% if pagination.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
-</nav>
-{% endif %}
-<p>
-  <a class="btn btn-secondary" href="{{ url_for('home.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
-  <span class="muted">·</span>
-  <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Download database</a>
-</p>
+  <ul class="month-list archived-list">
+    {% for m in months %}
+    <li class="month-item archived-item">
+      {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+      <a href="{{ url_for('months.show', bill_id=m.id) }}" class="month-link">
+        <span class="month-icon">🔒</span>
+        <span class="month-name">{{ m.year }}-{{ month_names[m.month-1] }}</span>
+        <span class="badge-archived">Archived</span>
+      </a>
+      <div class="month-actions">
+        <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-action" title="Export CSV"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">CSV</span></a>
+        <form method="post" action="{{ url_for('months.unarchive', bill_id=m.id) }}" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-action" title="Restore from archive"><svg class="icon"><use href="#icon-unarchive"/></svg><span class="action-label">Restore</span></button>
+        </form>
+        <div class="action-more">
+          <button type="button" class="btn btn-action btn-more" title="More options" onclick="toggleMoreActions(this)">⋮</button>
+          <div class="more-actions-dropdown">
+            <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="dropdown-item dropdown-item-danger"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete permanently</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </li>
+    {% else %}
+    <li class="empty-state">No archived months yet.</li>
+    {% endfor %}
+  </ul>
+  
+  {% if pagination.pages > 1 %}
+  <nav class="pagination">
+    {% if pagination.has_prev %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.prev_num }}">« Prev</a>{% endif %}
+    <span class="muted">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ pagination.next_num }}">Next »</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleMoreActions(btn) {
+  const container = btn.closest('.action-more');
+  const wasOpen = container.classList.contains('open');
+  document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  if (!wasOpen) container.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.action-more')) {
+    document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  }
+});
+</script>
 {% endblock %}

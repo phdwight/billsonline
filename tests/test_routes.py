@@ -394,7 +394,7 @@ class TestSettingsRoute:
         response = client.get("/settings/")
         assert response.status_code == 200
         assert b"Settings" in response.data
-        assert b"Database Management" in response.data
+        assert b"Database" in response.data
 
     def test_settings_page_has_download_link(self, client):
         response = client.get("/settings/")
@@ -402,10 +402,10 @@ class TestSettingsRoute:
 
     def test_settings_page_has_upload_form(self, client):
         response = client.get("/settings/")
-        assert b"Upload Database" in response.data
+        assert b"Restore" in response.data
         assert b'enctype="multipart/form-data"' in response.data
-        # Single button for select & upload
-        assert b"Select" in response.data and b"Upload .db file" in response.data
+        # File input for select
+        assert b"Select .db file" in response.data
 
     def test_settings_page_has_upload_indicator(self, client):
         response = client.get("/settings/")
