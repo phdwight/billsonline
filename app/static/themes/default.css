@@ -1,0 +1,48 @@
+/* Theme: Default - Light theme with teal/purple accents */
+
+:root {
+	/* Layout */
+	--gap: 1rem;
+	--radius: 10px;
+	
+	/* Colors */
+	--bg: #f8fafc;           /* light base */
+	--panel: #ffffff;
+	--card: #ffffff;
+	--muted: #64748b;        /* slate-500 */
+	--text: #1e293b;         /* slate-800 */
+	--primary: #4C4C6D;      /* purple-slate primary */
+	--primary-contrast: #ffffff;
+	--border: #e2e8f0;       /* slate-200 */
+	--success: #16a34a;      /* green-600 */
+	--error: #dc2626;        /* red-600 */
+	--warning: #f59e0b;      /* amber-500 */
+	--accent-1: #1B9C85;     /* teal accent */
+	--accent-2: #4C4C6D;     /* primary */
+	--light: #E8F6EF;        /* light mint background */
+	--input-bg: #f1f5f9;     /* slate-100 for inputs */
+	
+	/* Links */
+	--link: #0d9488;
+	--link-hover: #0f766e;
+	
+	/* Table */
+	--table-header-bg: #f1f5f9;
+	--table-header-text: #475569;
+	--table-row-even: #f8fafc;
+	--table-row-hover: rgba(76,76,109,0.08);
+	
+	/* Header */
+	--header-bg: rgba(255, 255, 255, 0.85);
+	
+	/* Secondary button */
+	--btn-secondary-bg: #e2e8f0;
+	
+	/* Flash messages */
+	--flash-bg: #f1f5f9;
+}
+
+/* Theme swatch preview */
+.theme-swatch.swatch-default { 
+	background: linear-gradient(135deg, #4C4C6D, #1B9C85); 
+}

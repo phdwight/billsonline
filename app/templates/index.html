@@ -3,7 +3,7 @@
 <section class="grid">
     <div class="card">
       <h2 class="section-title">Participants</h2>
-      <form method="post" action="{{ url_for('main.add_participant') }}" class="stack">
+      <form method="post" action="{{ url_for('participants.create') }}" class="stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>
           Name
@@ -22,7 +22,7 @@
 
     <div class="card">
       <h2 class="section-title">Months</h2>
-  <form method="post" action="{{ url_for('main.add_month') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
+  <form method="post" action="{{ url_for('months.create') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
         {{ form.csrf_token }}
         <div class="row">
           <label>
@@ -125,17 +125,17 @@
         {% for m in months %}
         <li>
           {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-          <a href="{{ url_for('main.month_detail', bill_id=m.id) }}">{{ m.year }}-{{ month_names[m.month-1] }}</a>
-          <form method="post" action="{{ url_for('main.archive_month', bill_id=m.id) }}" style="display:inline">
+          <a href="{{ url_for('months.show', bill_id=m.id) }}">{{ m.year }}-{{ month_names[m.month-1] }}</a>
+          <form method="post" action="{{ url_for('months.archive', bill_id=m.id) }}" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-link btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-archive"/></svg>Archive</button>
           </form>
-          <a href="{{ url_for('main.edit_month', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</a>
-          <form method="post" action="{{ url_for('main.delete_month', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
+          <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</a>
+          <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
           </form>
-          <a href="{{ url_for('main.export_month_csv', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
+          <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
         </li>
         {% else %}
         <li>No months yet</li>
@@ -151,9 +151,9 @@
     </div>
   </section>
   <section class="card" style="margin-top: var(--gap);">
-    <a class="btn btn-secondary" href="{{ url_for('main.participants_page') }}">Manage participants</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.archived') }}">Archived months</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('main.download_db') }}">Download database</a>
+    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">Manage participants</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">Archived months</a>
+    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Download database</a>
   </section>
 {% endblock %}
 {% block scripts %}

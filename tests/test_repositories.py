@@ -9,13 +9,9 @@ if str(ROOT) not in sys.path:
 import pytest
 from app import create_app
 from app.extensions import db
-from app.models import (
-    Participant, MonthlyBill, MeterReading, MonthlyAdjustment,
-    BillComponent, ComponentAdjustment, MonthParticipant
-)
 from app.repositories import (
     ParticipantRepository, MonthlyBillRepository, MeterReadingRepository,
-    MonthlyAdjustmentRepository, BillComponentRepository, ComponentAdjustmentRepository,
+    BillComponentRepository, ComponentAdjustmentRepository,
     MonthParticipantRepository
 )
 
@@ -97,7 +93,7 @@ class TestMonthlyBillRepository:
         with app.app_context():
             repo = MonthlyBillRepository()
             b1 = repo.create(2025, 1, 100.0, 50.0, 30.0)
-            b2 = repo.create(2025, 2, 100.0, 50.0, 30.0)
+            repo.create(2025, 2, 100.0, 50.0, 30.0)  # second bill needed for test
             repo.set_archived(b1.id, True)
             bills = repo.list_all()
             assert len(bills) == 1
@@ -253,57 +249,6 @@ class TestMonthParticipantRepository:
             mp_repo.remove(bill.id, p.id)
             members = mp_repo.list_for_month(bill.id)
             assert len(members) == 0
-
-
-class TestMonthlyAdjustmentRepository:
-    def test_upsert_creates_new(self, app):
-        with app.app_context():
-            p_repo = ParticipantRepository()
-            b_repo = MonthlyBillRepository()
-            adj_repo = MonthlyAdjustmentRepository()
-            p = p_repo.add("Adjusted")
-            bill = b_repo.create(2025, 1, 100.0, 50.0, 30.0)
-            adj = adj_repo.upsert(bill.id, p.id, True, False, True)
-            assert adj.zero_electricity is True
-            assert adj.zero_water is False
-            assert adj.zero_internet is True
-
-    def test_upsert_with_redistribution(self, app):
-        with app.app_context():
-            p_repo = ParticipantRepository()
-            b_repo = MonthlyBillRepository()
-            adj_repo = MonthlyAdjustmentRepository()
-            p = p_repo.add("Adjusted")
-            bill = b_repo.create(2025, 1, 100.0, 50.0, 30.0)
-            redis_rule = {"mode": "percent", "targets": {2: 100}}
-            adj = adj_repo.upsert(bill.id, p.id, True, False, False, redis_electricity=redis_rule)
-            # JSON serialization converts int keys to strings
-            assert adj.redis_electricity["mode"] == "percent"
-            assert "2" in adj.redis_electricity["targets"] or 2 in adj.redis_electricity["targets"]
-
-    def test_list_for_month(self, app):
-        with app.app_context():
-            p_repo = ParticipantRepository()
-            b_repo = MonthlyBillRepository()
-            adj_repo = MonthlyAdjustmentRepository()
-            p1 = p_repo.add("P1")
-            p2 = p_repo.add("P2")
-            bill = b_repo.create(2025, 1, 100.0, 50.0, 30.0)
-            adj_repo.upsert(bill.id, p1.id, True, False, False)
-            adj_repo.upsert(bill.id, p2.id, False, True, False)
-            adjs = adj_repo.list_for_month(bill.id)
-            assert len(adjs) == 2
-
-    def test_clear_for_month(self, app):
-        with app.app_context():
-            p_repo = ParticipantRepository()
-            b_repo = MonthlyBillRepository()
-            adj_repo = MonthlyAdjustmentRepository()
-            p = p_repo.add("P")
-            bill = b_repo.create(2025, 1, 100.0, 50.0, 30.0)
-            adj_repo.upsert(bill.id, p.id, True, False, False)
-            adj_repo.clear_for_month(bill.id)
-            assert len(adj_repo.list_for_month(bill.id)) == 0
 
 
 class TestBillComponentRepository:

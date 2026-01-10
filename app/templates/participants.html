@@ -12,7 +12,7 @@
   <tbody>
     {% for p in participants %}
     <tr>
-      <form method="post" action="{{ url_for('main.update_participant', pid=p.id) }}">
+      <form method="post" action="{{ url_for('participants.update', pid=p.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <td>
           <input type="text" name="name" value="{{ p.name }}" required>
@@ -25,6 +25,6 @@
     {% endfor %}
   </tbody>
 </table>
-<p style="margin-top:.75rem;"><a class="btn btn-secondary" href="{{ url_for('main.index') }}">Back</a></p>
+<p style="margin-top:.75rem;"><a class="btn btn-secondary" href="{{ url_for('home.index') }}">Back</a></p>
 </div>
 {% endblock %}

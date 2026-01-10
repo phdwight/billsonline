@@ -1,302 +1,403 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/tests-172%20passing-brightgreen)](tests/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A simple Flask + SQLite web app to split monthly bills among participants.
+**Bills Online** is a Flask web application for splitting monthly household utility bills among housemates or roommates. It handles the common scenario where multiple people share a living space and need to fairly divide costs for electricity, water, internet, and other recurring expenses.
 
-Rules implemented:
-- Electricity: split by usage percentage based on meter readings difference (current - previous) per participant. If no previous reading, usage defaults to 0.
-- Water: split evenly among all participants.
-- Internet: split evenly among all participants by default. If you need to exclude someone for a month, zero their Internet in Adjustments.
+## The Problem It Solves
 
-Adjustments and redistribution:
-- You can zero any participant’s Electricity/Water/Internet for a month.
-- The zeroed amount is redistributed equally among the remaining eligible participants for that component.
-- Eligible means “had a non-zero base share for that component” (e.g., for Electricity, non-zero usage; for Water/Internet, all participants).
+Splitting bills in a shared household is often complicated:
+- Some bills should be split equally (internet, rent)
+- Other bills need to be split by usage (electricity based on meter readings)
+- Sometimes a person should be excluded from certain bills (e.g., traveling that month)
+- When someone is excluded, their share needs to be redistributed to others
+- Tracking all this monthly becomes tedious and error-prone
 
-## Quick start
+**Bills Online** automates all of this with a simple web interface.
 
-Prerequisites: Python 3.11+ recommended.
+## Key Concepts
 
-1. Create a virtual environment and install dependencies
-```
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+### Participants
+The people sharing the bills (e.g., Alice, Bob, Charlie). Add them once and they're available for all months.
 
-2. Initialize the database (first run and after schema changes)
-```
-flask --app wsgi:app db upgrade
-```
+### Monthly Bills
+Each month gets its own bill entry containing multiple components and meter readings.
 
-3. Run the app (Flask dev server)
-```
-flask --app wsgi:app run --debug
-```
+### Bill Components
+Individual line items within a monthly bill. Each component has:
+- **Name**: e.g., "Electricity", "Water", "Internet", "Rent"
+- **Amount**: The total cost
+- **Split Method**: How to divide the cost among participants
 
-Then open http://localhost:5000 in your browser.
+### Split Methods
+- **Equal**: Everyone pays the same amount (total ÷ number of participants)
+- **Usage**: Split proportionally based on meter reading differences
+- **Percentage**: Custom percentages per participant (must sum to 100%)
+- **Fixed Amount**: Specific amounts per participant
 
-## Usage
+### Meter Readings
+For usage-based bills like electricity, enter each person's meter readings:
+- **Previous Reading**: Where the meter was at the start of the period
+- **Current Reading**: Where the meter is now
+- **Usage** = Current - Previous (calculated automatically)
 
-The **Home** page shows the latest month's details directly for quick access.
+### Adjustments
+When someone shouldn't pay for a component (e.g., they were away):
+1. "Zero out" their share for that component
+2. Their portion gets redistributed to others
+3. Redistribution can be equal, by percentage, or fixed amounts
 
-For administrative tasks, navigate to **Admin**:
-1. Add participants.
-2. Create a month with total amounts for electricity, water, and internet.
-3. Open the month and enter previous and current meter readings per participant.
-4. Use the Adjustments section to zero any component (e.g., exclude someone from Internet this month).
-5. View the computed contributions table; totals are rounded to 2 decimals and badges indicate zeroed components (E/W/I).
+---
 
-All data is stored in a local SQLite database file `billsonline.db` in the project root by default. Configure via `DATABASE_URL` if desired.
+## Features
 
-## Screenshots / GIF
-Add your own screenshots or a short GIF to quickly show the main flows. Place files under `docs/screenshots/` and update the paths below. You can use the helper script `scripts/record_gif.sh` (macOS + ffmpeg) to capture a GIF.
+### Bill Management
+- **Monthly Bills**: Create and manage bills for each month with multiple cost components
+- **Archive System**: Archive old bills to keep the main view clean; view archived bills separately
+- **Pagination**: Bills list is paginated (10 per page) for large histories
+- **CSV Export**: Download per-month contribution tables as CSV files
 
-- Home (latest month detail)
+### Dynamic Bill Components
+- **Custom Components**: Add any number of bill components (Electricity, Water, Internet, Rent, etc.)
+- **Flexible Splitting Methods**:
+  - **Equal**: Split evenly among all participants
+  - **Usage-based**: Split by meter reading differences (current - previous)
+  - **Percentage**: Assign custom percentages to each participant
+  - **Fixed Amount**: Assign specific amounts to each participant
+- **Component Ordering**: Drag-and-drop or manual position control
 
-	![Home](docs/screenshots/home.png)
+### Meter Readings
+- **Track Usage**: Record previous and current meter readings per participant
+- **Auto-calculation**: Usage automatically calculated as (current - previous)
+- **Pre-fill Support**: Previous readings can be pre-filled from the last month
 
-- Admin (manage months and participants)
+### Adjustments & Redistribution
+- **Zero Out**: Exclude any participant from any component for a specific month
+- **Custom Redistribution**: When zeroing out, redistribute to:
+  - All remaining participants equally (default)
+  - Specific participants by percentage
+  - Specific participants by fixed amounts
+- **Multiple Adjustments**: Zero out multiple participants with cascading redistribution
 
-	![Admin](docs/screenshots/admin.png)
+### Participant Management
+- **Add/Edit/Delete**: Manage household participants
+- **Unique Names**: Prevents duplicate participant names
 
-- Month detail (readings, adjustments, contributions)
+### Settings & Backup
+- **Database Backup**: Download timestamped database backups
+- **Database Restore**: Upload and restore from backup files
+- **Version Display**: Application version shown in footer
 
-	![Month detail](docs/screenshots/month_detail.png)
+### User Interface
+- **Responsive Design**: Works on desktop and mobile
+- **Theme Support**: Default and vibrant themes available
+- **Compact Mode**: Dense table view (add `?compact=1` to URL)
+- **Action Icons**: Quick-access icons for Edit, Archive, Delete, CSV, etc.
+- **CSRF Protection**: All forms protected via Flask-WTF
 
-- Adjustments in action (GIF recommended)
+---
 
-	![Adjustments flow](docs/screenshots/flow.gif)
+## Quick Start
 
-### Extras
-- CSRF protection is enabled for all POST forms via Flask-WTF.
-- Month creation and edit use WTForms validation.
-- Archive months to hide them from the main list; view via the Archived page.
-- Pagination: months list is paginated (10 per page) for large histories.
-- Exports:
-	- Per-month CSV download of the Contributions table from a month’s page
-- Settings page:
-	- Download database backup with timestamped filename
-	- Upload and replace database (with automatic backup and confirmation)
-	- Version number display in footer (auto-incremented on push)
-- UI polish:
-	- Action icons (Edit, Archive, Delete, CSV, Back, View, Unarchive) for quick scanning
-	- Compact mode for dense tables: add `?compact=1` to the URL or toggle from the header
-
-## Tests
-Run unit tests for the calculation service:
-```
-pytest -q
-```
-
-Run tests with coverage report:
-```
-pytest --cov=app --cov-report=term-missing tests/
-```
-
-Current test coverage: **86%** (150 tests)
-
-## Run with Docker
-
-The easiest way to run the application is with Docker.
-
-### Using Pre-built Image (Recommended)
-
-Pull and run the latest image from GitHub Container Registry:
+### Option 1: Run with Docker (Recommended)
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/phdwight/billsonline:latest
+# Pull and run the latest image
+docker run -d -p 8000:8000 --name billsonline billsonline:latest
 
-# Run with docker-compose (recommended)
-curl -O https://raw.githubusercontent.com/phdwight/billsonline/main/docker-compose.yml
-docker compose up -d
-
-# Or run directly
-docker run -d -p 1982:8000 --name billsonline ghcr.io/phdwight/billsonline:latest
+# Or build locally
+git clone https://github.com/phdwight/billsonline.git
+cd billsonline
+docker build -t billsonline:latest .
+docker run -d -p 8000:8000 --name billsonline billsonline:latest
 ```
 
-The app will be available at **http://localhost:1982**
+Open **http://localhost:8000** in your browser.
 
-### Build Locally
+#### Docker with Persistent Database
+
+```bash
+# Run with volume mount for data persistence
+docker run -d -p 8000:8000 \
+  -v billsonline-data:/app \
+  --name billsonline \
+  billsonline:latest
+
+# Copy existing database into container
+docker cp ./billsonline.db billsonline:/app/billsonline.db
+docker restart billsonline
+
+# Backup database from container
+docker cp billsonline:/app/billsonline.db ./billsonline-backup.db
+```
+
+#### Docker Compose
+
+```bash
+docker compose up -d --build    # Build and start
+docker compose logs -f          # View logs
+docker compose down             # Stop
+```
+
+---
+
+### Option 2: Run Directly with Python
+
+**Prerequisites**: Python 3.11+ (3.12 recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/phdwight/billsonline.git
 cd billsonline
 
-# Build and start the container
-docker compose up -d --build
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# View logs
-docker compose logs -f
+# Install dependencies
+pip install -r requirements.txt
 
-# Stop the container
-docker compose down
+# Initialize database
+flask --app wsgi:app db upgrade
+
+# Run with Flask development server
+flask --app wsgi:app run --debug --port 5000
 ```
 
-### Prerequisites
-- Docker and Docker Compose installed
+Open **http://localhost:5000** in your browser.
 
-### Quick Start
+#### Run with Uvicorn (ASGI - Production)
+
 ```bash
-# Build and start the container
-docker compose up -d --build
+# Development with auto-reload
+uvicorn asgi:app --host 127.0.0.1 --port 8000 --reload
 
-# View logs
-docker compose logs -f
-
-# Stop the container
-docker compose down
+# Production
+uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-The app will be available at **http://localhost:1982**
+---
 
-### Database Persistence
+## Usage Guide
 
-The SQLite database is stored in a Docker volume at `/app/instance/billsonline.db` inside the container. Your data persists across container restarts.
+### Getting Started
 
-#### Export database (backup)
+1. **Add Participants**: Go to Admin and add participants (e.g., Alice, Bob, Charlie)
+2. **Create a Month**: Create a new monthly bill entry
+3. **Add Components**: Add bill components with amounts and splitting methods
+4. **Enter Readings**: For usage-based components, enter meter readings
+5. **View Results**: See the calculated contributions table
+
+### Adjustments Example
+
+To exclude Alice from Internet for January:
+1. Open the January bill
+2. Go to Adjustments section
+3. Zero out Alice's Internet component
+4. Choose redistribution method (equal to others, or custom percentages)
+5. Save - Alice pays $0, others pay her share
+
+---
+
+## Tests
+
+The project includes comprehensive test coverage with **172 tests** across unit tests and BDD tests.
+
+### Run All Tests
+
 ```bash
-# Copy from container to your local machine
-docker compose cp app:/app/instance/billsonline.db ./billsonline-backup.db
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run with coverage report
+pytest --cov=app --cov-report=term-missing tests/
 ```
 
-#### Import database (restore)
+### Test Categories
+
+#### Unit Tests (144 tests)
+
+Located in `tests/`:
+- `test_calculator.py` - Bill calculation logic (splitting, redistribution)
+- `test_models.py` - SQLAlchemy models and relationships
+- `test_repositories.py` - Data access layer (CRUD operations)
+- `test_routes.py` - Flask route handlers
+- `test_routes_complex.py` - Complex multi-step scenarios
+- `test_forms.py` - WTForms validation rules
+- `test_adjustments.py` - Zero-out and redistribution logic
+- `test_dynamic_components.py` - Dynamic component features
+- `test_dynamic_services_extra.py` - Service layer edge cases
+- `test_custom_redistribution.py` - Custom redistribution rules
+- `test_custom_redistribution_edges.py` - Edge cases for redistribution
+- `test_version.py` - Version utility tests
+
+#### BDD Tests (28 tests)
+
+Located in `tests/bdd/` with Gherkin feature files in `tests/features/`:
+
+| Feature File | Scenarios | Description |
+|--------------|-----------|-------------|
+| `participants.feature` | 5 | Participant management |
+| `monthly_bills.feature` | 6 | Bill CRUD operations |
+| `bill_components.feature` | 6 | Component splitting methods |
+| `adjustments.feature` | 6 | Cost redistribution |
+| `meter_readings.feature` | 5 | Usage tracking |
+
+**Example BDD Scenario:**
+
+```gherkin
+Scenario: Add an equally split component
+  Given participants "Alice, Bob, Charlie" exist
+  And a bill for January 2025 exists
+  When I add a component "Water" with amount 300.00 split "equal"
+  Then each participant should pay 100.00 for "Water"
+```
+
+### Run Specific Test Categories
+
 ```bash
-# Copy from your local machine into the container
-docker compose cp ./billsonline.db app:/app/instance/billsonline.db
+# Run only unit tests
+pytest tests/ --ignore=tests/bdd/
 
-# Restart to apply
-docker compose restart
+# Run only BDD tests
+pytest tests/bdd/
+
+# Run specific test file
+pytest tests/test_calculator.py -v
+
+# Run tests matching a pattern
+pytest -k "adjustment" -v
 ```
 
-### Environment Variables
+---
 
-Create a `.env` file in the project root for custom configuration:
-```
-SECRET_KEY=your-secure-random-key-here
-FLASK_ENV=production
-```
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | SQLite database path | `sqlite:///billsonline.db` |
+| `SECRET_KEY` | Flask secret key | Auto-generated (set for production) |
+| `FLASK_ENV` | Environment mode | `development` |
 
 Generate a secure secret key:
+
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-### Deploy to Another Machine
+---
 
-1. Copy `docker-compose.yml` to the new machine (or download it):
-   ```bash
-   curl -O https://raw.githubusercontent.com/phdwight/billsonline/main/docker-compose.yml
-   ```
-2. Install Docker on the new machine
-3. Create a `.env` file with your `SECRET_KEY`
-4. Run `docker compose up -d`
-5. (Optional) Import your database backup using the steps above
+## Project Structure
 
-## Run with Uvicorn (ASGI)
-
-You can run this Flask app with an ASGI server using a WSGI→ASGI adapter. The ASGI app is defined in `asgi.py` and wraps the Flask WSGI app via `asgiref.wsgi.WsgiToAsgi`.
-
-1) Install (includes `uvicorn` and `asgiref`)
 ```
-pip install -r requirements.txt
+billsonline/
+├── app/
+│   ├── __init__.py          # Package exports (create_app, get_version)
+│   ├── factory.py           # Flask application factory
+│   ├── version.py           # Version utility
+│   ├── config.py            # Configuration classes
+│   ├── extensions.py        # Flask extensions (db, migrate, csrf)
+│   ├── models.py            # SQLAlchemy models (6 models)
+│   ├── repositories.py      # Data access layer
+│   ├── forms.py             # WTForms definitions
+│   ├── routes/              # Blueprint routes
+│   │   ├── __init__.py      # Re-exports register_blueprints
+│   │   ├── registration.py  # Blueprint registration function
+│   │   ├── admin.py         # Admin dashboard
+│   │   ├── home.py          # Home page routes
+│   │   ├── months.py        # Monthly bill CRUD
+│   │   ├── participants.py  # Participant management
+│   │   ├── components.py    # Bill component management
+│   │   ├── adjustments.py   # Adjustment/redistribution
+│   │   └── settings.py      # Settings and backup
+│   ├── services/            # Business logic (SOLID)
+│   │   ├── __init__.py      # Re-exports services
+│   │   ├── bill_calculator.py  # Core calculation engine
+│   │   ├── month_service.py    # Month orchestration
+│   │   └── adjustment_service.py  # Adjustment logic
+│   ├── templates/           # Jinja2 templates
+│   └── static/              # CSS, JS, themes
+├── tests/
+│   ├── test_*.py            # Unit tests (144)
+│   ├── bdd/                 # BDD step definitions
+│   │   ├── conftest.py      # Fixtures and mocks
+│   │   └── test_bdd_*.py    # Step implementations
+│   └── features/            # Gherkin feature files (5 features)
+├── migrations/              # Alembic database migrations
+├── scripts/                 # Utility scripts
+├── docs/                    # Documentation assets
+├── main.py                  # ASGI entrypoint
+├── asgi.py                  # ASGI app wrapper
+├── wsgi.py                  # WSGI entrypoint
+├── Dockerfile               # Container build
+├── docker-compose.yml       # Docker Compose config
+├── requirements.txt         # Python dependencies
+└── VERSION                  # App version number
 ```
 
-2) Dev run with auto-reload
-```
-uvicorn asgi:app --host 127.0.0.1 --port 8000 --reload
-```
+### Architecture
 
-3) Production run (example)
-```
-uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
-```
+This project follows **SOLID principles** with clean separation:
 
-Env vars:
-- DATABASE_URL (optional; defaults to local SQLite file `billsonline.db`)
-- SECRET_KEY (set for production)
+- **Models** (`models.py`): Data structures and relationships only
+- **Repositories** (`repositories.py`): Database access, no business logic
+- **Services** (`services/`): Business logic with dependency injection
+- **Routes** (`routes/`): HTTP handling, delegates to services
+- **Factory** (`factory.py`): Application composition root
 
-Reverse proxy:
-- Put Nginx/Caddy in front for TLS and static file caching.
-
-Example `systemd` unit (optional):
-```
-[Unit]
-Description=BillsOnline (Uvicorn)
-After=network.target
-
-[Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/opt/billsonline
-Environment="DATABASE_URL=sqlite:////opt/billsonline/billsonline.db"
-Environment="SECRET_KEY=change-me"
-ExecStart=/opt/billsonline/.venv/bin/uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+---
 
 ## Troubleshooting
-- Can’t reach the app or get 403 on 127.0.0.1:
-	- Use the correct URL with the port: http://localhost:5000/ or http://127.0.0.1:5000/
-	- If behind a VPN/proxy, try using localhost instead of 127.0.0.1, or disconnect the VPN.
 
-- “Port 5000 is already in use” or browser shows another app:
-	- Run on a different port:
-		- `flask --app wsgi:app run --debug --port 5001`
+### Common Issues
 
-- “flask: command not found”:
-	- Use your virtualenv’s Python: `python -m flask --app wsgi:app run`
-	- Or activate the venv: `source .venv/bin/activate`
+**Port already in use:**
 
-- Database file issues (permission/path):
-	- Default DB path is `<repo>/billsonline.db`. Ensure the folder is writable.
-	- You can override with `DATABASE_URL` (e.g., `sqlite:////absolute/path/to/db.sqlite`).
+```bash
+# Use a different port
+flask --app wsgi:app run --debug --port 5001
+# Or for uvicorn
+uvicorn asgi:app --port 8001
+```
 
-- Migration errors (missing tables/columns):
-	- Run migrations: `flask --app wsgi:app db upgrade`
-	- If Alembic is out of sync, you can recreate the DB (development only): remove `billsonline.db` and run upgrade again.
+**Database migration errors:**
 
-- CSRF 400 on form submit:
-	- Ensure the page was loaded in the same browser session and the CSRF token field is present in the form.
+```bash
+flask --app wsgi:app db upgrade
+# If out of sync, recreate (dev only):
+rm billsonline.db && flask --app wsgi:app db upgrade
+```
 
-## Project structure
-- `app/models.py`: SQLAlchemy models
-- `app/repositories.py`: data access layer
-- `app/services.py`: bill calculation logic
-- `app/routes/`: Flask routes and views
-- `app/templates/`: Jinja templates
-- `tests/`: test suite (150 tests, 86% coverage)
-- `wsgi.py`: app entry point
-- `asgi.py`: ASGI entry point for Uvicorn/Hypercorn
-- `Dockerfile`: container build configuration
-- `VERSION`: application version (auto-incremented on push)
-- `.github/workflows/`: CI/CD pipelines (including version bump)
+**CSRF 400 error on form submit:**
+- Ensure the page was loaded in the same browser session
+- Check that CSRF token field is present in forms
 
-This structure aims to follow SOLID principles by separating concerns across layers.
+**Docker container won't start:**
+
+```bash
+docker logs billsonline  # Check logs
+docker rm billsonline    # Remove and recreate
+```
+
+---
 
 ## CI/CD
 
-This project uses GitHub Actions for continuous integration:
+GitHub Actions automatically:
+- Runs all tests (minimum 80% coverage required)
+- Builds Docker images on push to `main`
+- Pushes to GitHub Container Registry (`ghcr.io/phdwight/billsonline`)
+- Tags with `latest`, branch name, git SHA, and semantic versions
+- Builds for `linux/amd64` and `linux/arm64` platforms
 
-- **Tests**: All tests must pass before Docker build proceeds (minimum 80% coverage required)
-- **Docker Build**: On every push to `main`/`master`, a Docker image is automatically built and pushed to GitHub Container Registry (`ghcr.io/phdwight/billsonline`)
-- **Tags**: Images are tagged with `latest`, branch name, git SHA, and semantic versions (e.g., `v1.0.0`)
-- **Multi-platform**: Images are built for both `linux/amd64` (Intel/AMD) and `linux/arm64` (Apple Silicon)
+---
 
-### Branch Protection (Recommended)
+## License
 
-To enforce that tests pass before merging, configure branch protection in GitHub:
-
-1. Go to **Settings** → **Branches** → **Add rule**
-2. Set **Branch name pattern** to `main` (or `master`)
-3. Enable **Require status checks to pass before merging**
-4. Search and select **test** as a required status check
-5. (Optional) Enable **Require branches to be up to date before merging**
-6. Save changes
+MIT License - see [LICENSE](LICENSE) file.

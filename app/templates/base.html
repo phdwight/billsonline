@@ -22,8 +22,8 @@
       <div class="container">
         <div class="brand"><span class="logo"></span> Bills Online</div>
         <nav>
-          <a class="btn-link" href="{{ url_for('main.index') }}">Home</a>
-          <a class="btn-link" href="{{ url_for('main.settings') }}">Settings</a>
+          <a class="btn-link" href="{{ url_for('home.index') }}">Home</a>
+          <a class="btn-link" href="{{ url_for('settings.index') }}">Settings</a>
         </nav>
       </div>
     </header>
@@ -41,18 +41,7 @@
       {% block content %}{% endblock %}
       </div>
     </main>
-    <script>
-      (function(){
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme && savedTheme !== 'default') {
-          document.body.classList.add('theme-' + savedTheme);
-        }
-        // Compact mode
-        const params = new URLSearchParams(location.search);
-        if (params.get('compact') === '1') document.body.classList.add('compact');
-      })();
-    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block scripts %}{% endblock %}
     <footer class="version-footer">
       <span>v{{ app_version }}</span>

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, DecimalField, BooleanField, StringField, SubmitField, SelectField
-from wtforms.validators import DataRequired, NumberRange, InputRequired, ValidationError
+from wtforms import IntegerField, DecimalField, SubmitField, SelectField
+from wtforms.validators import NumberRange, InputRequired, ValidationError
 from .repositories import MonthlyBillRepository
 
 

@@ -37,7 +37,7 @@
     </label>
     <div style="display:flex; gap:.5rem; align-items:center;">
       <button class="btn btn-primary" type="submit">Save</button>
-      <a class="btn btn-secondary" href="{{ url_for('main.month_detail', bill_id=bill.id) }}">Cancel</a>
+      <a class="btn btn-secondary" href="{{ url_for('months.show', bill_id=bill.id) }}">Cancel</a>
     </div>
   </form>
 </div>

@@ -4,16 +4,16 @@ from typing import Dict, List, Iterable
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from .models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
+from ..models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
 
 
 class DynamicContribution(BaseModel):
     """Pydantic model for participant contribution data."""
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    
+
     participant: Participant
     components: Dict[str, float]
-    
+
     @computed_field
     @property
     def total(self) -> float:
@@ -23,6 +23,7 @@ class DynamicContribution(BaseModel):
 class BillCalculator:
     # ========================= Dynamic components API =========================
 
+    # pylint: disable=too-many-arguments,too-many-branches
     def compute_contributions_dynamic(
         self,
         bill: MonthlyBill,
@@ -33,8 +34,9 @@ class BillCalculator:
     ) -> List[DynamicContribution]:
         """Compute contributions for arbitrary components.
 
-        components: BillComponent objects with amount and split_method ('usage'|'equal').
-        component_adjustments: ComponentAdjustment entries, per (component_id, participant_id) with zero flag and optional redis_rule.
+        components: BillComponent objects with amount and split_method.
+        component_adjustments: ComponentAdjustment entries per (component_id, participant_id)
+            with zero flag and optional redis_rule.
         Returns list of DynamicContribution preserving per-component columns by name.
         """
         if not participants or not components:
@@ -169,7 +171,13 @@ class BillCalculator:
 
     # Contributions are handled exclusively via dynamic components.
 
-    def _allocate_percent(self, to_distribute: float, targets: Dict, remaining_ids: List[int], amounts: Dict[int, float]) -> float:
+    def _allocate_percent(
+        self,
+        to_distribute: float,
+        targets: Dict,
+        remaining_ids: List[int],
+        amounts: Dict[int, float]
+    ) -> float:
         allocated = 0.0
         try:
             total_pct = sum(float(v) for v in targets.values())
@@ -188,7 +196,13 @@ class BillCalculator:
                     allocated += inc
         return allocated
 
-    def _allocate_amount(self, to_distribute: float, targets: Dict, remaining_ids: List[int], amounts: Dict[int, float]) -> float:
+    def _allocate_amount(
+        self,
+        to_distribute: float,
+        targets: Dict,
+        remaining_ids: List[int],
+        amounts: Dict[int, float]
+    ) -> float:
         allocated = 0.0
         try:
             sum_vals = sum(float(v) for v in targets.values())
@@ -208,7 +222,13 @@ class BillCalculator:
                     allocated += inc
         return allocated
 
-    def _distribute_leftover(self, zeroed_total: float, allocated: float, remaining_ids: List[int], amounts: Dict[int, float]) -> None:
+    def _distribute_leftover(
+        self,
+        zeroed_total: float,
+        allocated: float,
+        remaining_ids: List[int],
+        amounts: Dict[int, float]
+    ) -> None:
         leftover = max(0.0, zeroed_total - allocated)
         if leftover > 0 and remaining_ids:
             equal_increment = leftover / len(remaining_ids)

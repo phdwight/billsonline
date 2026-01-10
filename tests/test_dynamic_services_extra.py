@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.services import BillCalculator
-from app.models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
+from app.models import MonthlyBill, MeterReading, Participant, BillComponent
 
 
 def P(id, name):
@@ -43,7 +43,7 @@ def test_percentage_distribution_normalizes_when_not_100():
 def test_rounding_correction_preserves_total_equal_split():
     bill = MonthlyBill(year=2025, month=10)
     # 3 participants, 100 split equal -> 33.33, 33.33, 33.34 after correction
-    parts = [P(1,'A'), P(2,'B'), P(3,'C')]
+    parts = [P(1, 'A'), P(2, 'B'), P(3, 'C')]
     comp = BillComponent(month_id=1, name='Equal100', amount=100.0, split_method='equal', position=1)
     comp.id = 102
     calc = BillCalculator()
@@ -56,7 +56,7 @@ def test_rounding_correction_preserves_total_equal_split():
 def test_rounding_correction_preserves_total_usage_split():
     bill = MonthlyBill(year=2025, month=10)
     # Usage shares: 1,1,1 -> amount 100 -> same as equal rounding
-    parts = [P(1,'A'), P(2,'B'), P(3,'C')]
+    parts = [P(1, 'A'), P(2, 'B'), P(3, 'C')]
     readings = [R(1, 101, 100), R(2, 201, 200), R(3, 301, 300)]  # each usage 1
     comp = BillComponent(month_id=1, name='Usage100', amount=100.0, split_method='usage', position=1)
     comp.id = 103
