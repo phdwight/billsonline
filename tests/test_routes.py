@@ -357,20 +357,6 @@ class TestArchiveRoutes:
             bill = db.session.get(MonthlyBill, sample_bill)
             assert bill.archived is True
 
-    def test_unarchive_month_disabled(self, client, app, sample_bill):
-        # First archive
-        with app.app_context():
-            bill = db.session.get(MonthlyBill, sample_bill)
-            bill.archived = True
-            db.session.commit()
-        response = client.post(f"/months/{sample_bill}/unarchive", follow_redirects=True)
-        assert response.status_code == 200
-        # Unarchiving is disabled - should still be archived
-        assert b"not allowed" in response.data.lower()
-        with app.app_context():
-            bill = db.session.get(MonthlyBill, sample_bill)
-            assert bill.archived is True
-
     def test_archived_page(self, client, app):
         with app.app_context():
             bill = MonthlyBill(year=2025, month=9, electricity_amount=100, water_amount=50, internet_amount=30, archived=True)

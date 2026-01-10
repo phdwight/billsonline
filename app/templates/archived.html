@@ -17,19 +17,6 @@
       </a>
       <div class="month-actions">
         <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-action" title="Export CSV"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">CSV</span></a>
-        <form method="post" action="{{ url_for('months.unarchive', bill_id=m.id) }}" style="display:inline">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-action" title="Restore from archive"><svg class="icon"><use href="#icon-unarchive"/></svg><span class="action-label">Restore</span></button>
-        </form>
-        <div class="action-more">
-          <button type="button" class="btn btn-action btn-more" title="More options" onclick="toggleMoreActions(this)">⋮</button>
-          <div class="more-actions-dropdown">
-            <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="dropdown-item dropdown-item-danger"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete permanently</button>
-            </form>
-          </div>
-        </div>
       </div>
     </li>
     {% else %}
@@ -45,19 +32,4 @@
   </nav>
   {% endif %}
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-function toggleMoreActions(btn) {
-  const container = btn.closest('.action-more');
-  const wasOpen = container.classList.contains('open');
-  document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
-  if (!wasOpen) container.classList.add('open');
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.action-more')) {
-    document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
-  }
-});
-</script>
 {% endblock %}
