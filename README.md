@@ -216,6 +216,16 @@ To create a month where only Alice and Bob are included (Charlie is excluded):
 
 **Tip:** You can use "Select All" / "Deselect All" buttons to quickly manage participant selection during month creation.
 
+### Managing Participants
+
+To manage (edit or delete) participants:
+1. Go to Admin page
+2. Click "👥 Participants" or "Manage" link in the Participants section
+3. On the Manage Participants page:
+   - **Edit**: Modify participant name in the text field and click "✓" to save
+   - **Delete**: Click "✕" button to permanently remove a participant
+   - **Warning**: Deleting a participant will remove them from all months and cannot be undone
+
 ---
 
 ## Tests

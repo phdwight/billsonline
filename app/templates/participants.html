@@ -8,14 +8,20 @@
   
   <div class="participant-edit-list">
     {% for p in participants %}
-    <form method="post" action="{{ url_for('participants.update', pid=p.id) }}" class="participant-edit-row">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <span class="participant-avatar">{{ p.name[0].upper() }}</span>
-      <div class="input-with-button">
-        <input type="text" name="name" value="{{ p.name }}" required>
-        <button type="submit" class="btn btn-primary btn-icon" title="Save changes">✓</button>
-      </div>
-    </form>
+    <div class="participant-edit-row">
+      <form method="post" action="{{ url_for('participants.update', pid=p.id) }}" style="display: flex; flex: 1; align-items: center;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span class="participant-avatar">{{ p.name[0].upper() }}</span>
+        <div class="input-with-button">
+          <input type="text" name="name" value="{{ p.name }}" required>
+          <button type="submit" class="btn btn-primary btn-icon" title="Save changes">✓</button>
+        </div>
+      </form>
+      <form method="post" action="{{ url_for('participants.delete', pid=p.id) }}" style="margin-left: 0.5rem;" onsubmit="return confirm('Are you sure you want to delete {{ p.name }}? This will also remove them from all months.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger btn-icon" title="Delete {{ p.name }}">✕</button>
+      </form>
+    </div>
     {% else %}
     <div class="empty-state">No participants yet. Add one from the home page.</div>
     {% endfor %}
