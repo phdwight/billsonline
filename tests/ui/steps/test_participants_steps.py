@@ -7,9 +7,12 @@ from playwright.sync_api import expect
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from conftest import HomePage, ParticipantsPage
+# Import from ui conftest (not bdd conftest)
+UI_TEST_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(UI_TEST_DIR))
+
+from tests.ui.conftest import HomePage, ParticipantsPage
 
 # Load scenarios from feature file
 scenarios(str(Path(__file__).parent.parent / "features" / "ui_participants.feature"))
