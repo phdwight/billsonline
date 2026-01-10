@@ -207,9 +207,24 @@ To exclude Alice from Internet for January:
 To create a month where only Alice and Bob are included (Charlie is excluded):
 1. Go to Admin page
 2. Click "Create New Month"
-3. Uncheck Charlie's checkbox in the "Select Participants for this Month" section
+3. In the "Select Participants for this Month" section:
+   - Uncheck Charlie's checkbox, OR
+   - Click the "✕" remove button next to Charlie's name, OR
+   - Use "Deselect All" and then manually select Alice and Bob
 4. Fill in the month details and bill amounts
 5. Submit - only Alice and Bob will appear in that month's calculations
+
+**Tip:** You can use "Select All" / "Deselect All" buttons to quickly manage participant selection during month creation.
+
+### Managing Participants
+
+To manage (edit or delete) participants:
+1. Go to Admin page
+2. Click "👥 Participants" or "Manage" link in the Participants section
+3. On the Manage Participants page:
+   - **Edit**: Modify participant name in the text field and click "✓" to save
+   - **Delete**: Click "✕" button to permanently remove a participant
+   - **Warning**: Deleting a participant will remove them from all months and cannot be undone
 
 ---
 

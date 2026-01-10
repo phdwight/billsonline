@@ -330,7 +330,8 @@ class ParticipantsPage(BasePage):
         # Find the row by looking for input with matching value
         row = self.page.locator(f".participant-edit-row:has(input[value='{old_name}'])")
         row.locator("input[name='name']").fill(new_name)
-        row.locator("button[type='submit']").click()
+        # Use title attribute to specifically target the save button (not delete)
+        row.locator("button[title='Save changes']").click()
         self.wait_for_load()
 
 

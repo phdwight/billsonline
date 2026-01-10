@@ -76,6 +76,15 @@ class TestParticipantRepository:
             updated = repo.update(p.id, "NewName")
             assert updated.name == "NewName"
 
+    def test_delete_participant(self, app):
+        with app.app_context():
+            repo = ParticipantRepository()
+            p = repo.add("ToDelete")
+            participant_id = p.id
+            repo.delete(participant_id)
+            deleted = repo.get(participant_id)
+            assert deleted is None
+
 
 class TestMonthlyBillRepository:
     def test_create_bill(self, app):

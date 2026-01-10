@@ -13,12 +13,17 @@
     </div>
     <fieldset class="card" style="margin-top:.5rem;">
       <legend><strong>👥 Select Participants for this Month</strong></legend>
-      <div class="muted"><small>Choose which participants will be included in this month's bill.</small></div>
+      <div class="muted"><small>Choose which participants will be included in this month's bill. Uncheck to exclude a participant.</small></div>
+      <div style="margin-top:.5rem; margin-bottom:.5rem;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllParticipants()">Select All</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="deselectAllParticipants()">Deselect All</button>
+      </div>
       <div class="row" style="margin-top:.5rem;">
         {% for p in participants %}
         <label style="display:flex; align-items:center; gap:.25rem;">
           <input type="checkbox" name="selected_participants" value="{{ p.id }}" checked onchange="toggleParticipantVisibility({{ p.id }}, this.checked)">
           <span>{{ p.name }}</span>
+          <button type="button" class="btn btn-sm" style="margin-left:auto; padding:0.1rem 0.4rem; font-size:0.75rem;" onclick="removeParticipant({{ p.id }})" title="Remove {{ p.name }}">✕</button>
         </label>
         {% endfor %}
       </div>
@@ -344,6 +349,33 @@ function validateCreationDistributions(form){
     });
   }
   return ok;
+}
+function removeParticipant(participantId) {
+  const checkbox = document.querySelector(`input[name="selected_participants"][value="${participantId}"]`);
+  if (checkbox && checkbox.checked) {
+    checkbox.checked = false;
+    toggleParticipantVisibility(participantId, false);
+  }
+}
+function selectAllParticipants() {
+  const checkboxes = document.querySelectorAll('input[name="selected_participants"]');
+  checkboxes.forEach(checkbox => {
+    if (!checkbox.checked) {
+      checkbox.checked = true;
+      const participantId = parseInt(checkbox.value);
+      toggleParticipantVisibility(participantId, true);
+    }
+  });
+}
+function deselectAllParticipants() {
+  const checkboxes = document.querySelectorAll('input[name="selected_participants"]');
+  checkboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      checkbox.checked = false;
+      const participantId = parseInt(checkbox.value);
+      toggleParticipantVisibility(participantId, false);
+    }
+  });
 }
 </script>
 {% endblock %}

@@ -144,6 +144,16 @@ class TestParticipantRoutes:
         assert response.status_code == 200
         assert b"required" in response.data.lower()
 
+    def test_delete_participant(self, client, app, sample_participant):
+        response = client.post(
+            f"/participants/{sample_participant}/delete",
+            follow_redirects=True
+        )
+        assert response.status_code == 200
+        with app.app_context():
+            p = db.session.get(Participant, sample_participant)
+            assert p is None
+
 
 class TestMonthRoutes:
     def test_new_month_page(self, client):

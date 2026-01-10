@@ -31,6 +31,14 @@ class ParticipantRepository:
         db.session.commit()
         return p
 
+    def delete(self, participant_id: int) -> None:
+        p = db.session.get(Participant, participant_id)
+        if p is None:
+            from flask import abort
+            abort(404)
+        db.session.delete(p)
+        db.session.commit()
+
 
 class MonthlyBillRepository:
     def create(

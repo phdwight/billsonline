@@ -58,3 +58,12 @@ def update(pid: int):
     participants_repo.update(pid, name)
     flash("Participant updated", "info")
     return redirect(url_for("participants.index"))
+
+
+@bp.post("/<int:pid>/delete")
+def delete(pid: int):
+    """POST /participants/<id>/delete - Delete a participant (DELETE emulation via POST)."""
+    participants_repo = _get_participants_repo()
+    participants_repo.delete(pid)
+    flash("Participant deleted", "info")
+    return redirect(url_for("participants.index"))
