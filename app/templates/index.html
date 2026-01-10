@@ -2,7 +2,7 @@
 {% block content %}
 <section class="grid">
     <div class="card">
-      <h2 class="section-title">Participants</h2>
+      <h2 class="section-title">👥 Participants</h2>
       <form method="post" action="{{ url_for('participants.create') }}" class="stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>
@@ -11,17 +11,20 @@
         </label>
         <button class="btn btn-primary" type="submit">Add Participant</button>
       </form>
-      <ul>
+      <ul class="participant-list">
         {% for p in participants %}
-        <li>
+        <li class="participant-item" style="animation-delay: {{ loop.index * 0.05 }}s">
+          <span class="participant-avatar">{{ p.name[0].upper() }}</span>
           {{ p.name }}
         </li>
+        {% else %}
+        <li class="empty-state">No participants yet. Add one above!</li>
         {% endfor %}
       </ul>
     </div>
 
     <div class="card">
-      <h2 class="section-title">Months</h2>
+      <h2 class="section-title">📅 Months</h2>
   <form method="post" action="{{ url_for('months.create') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
         {{ form.csrf_token }}
         <div class="row">
@@ -118,27 +121,32 @@
           </div>
           <button type="button" class="btn btn-secondary" onclick="addCompRow(this)">+ Add another</button>
         </details>
-        <button class="btn btn-primary" type="submit">Create Month</button>
+        <button class="btn btn-primary" type="submit">✨ Create Month</button>
       </form>
 
-      <ul>
+      <ul class="month-list">
         {% for m in months %}
-        <li>
+        <li class="month-item" style="animation-delay: {{ loop.index * 0.05 }}s">
           {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-          <a href="{{ url_for('months.show', bill_id=m.id) }}">{{ m.year }}-{{ month_names[m.month-1] }}</a>
-          <form method="post" action="{{ url_for('months.archive', bill_id=m.id) }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-link btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-archive"/></svg>Archive</button>
-          </form>
-          <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</a>
-          <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
-          </form>
-          <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
+          <a href="{{ url_for('months.show', bill_id=m.id) }}" class="month-link">
+            <span class="month-icon">📆</span>
+            <span class="month-name">{{ m.year }}-{{ month_names[m.month-1] }}</span>
+          </a>
+          <div class="month-actions">
+            <form method="post" action="{{ url_for('months.archive', bill_id=m.id) }}" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-link btn-sm" type="submit" title="Archive"><svg class="icon icon-left"><use href="#icon-archive"/></svg></button>
+            </form>
+            <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-link btn-sm" title="Edit"><svg class="icon icon-left"><use href="#icon-edit"/></svg></a>
+            <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this month?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-link btn-sm" title="Delete"><svg class="icon icon-left"><use href="#icon-delete"/></svg></button>
+            </form>
+            <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-link btn-sm" title="Export CSV"><svg class="icon icon-left"><use href="#icon-csv"/></svg></a>
+          </div>
         </li>
         {% else %}
-        <li>No months yet</li>
+        <li class="empty-state">No months yet. Create one above!</li>
         {% endfor %}
       </ul>
         {% if pagination.pages > 1 %}
@@ -150,10 +158,10 @@
       {% endif %}
     </div>
   </section>
-  <section class="card" style="margin-top: var(--gap);">
-    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">Manage participants</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">Archived months</a>
-    <span class="muted">·</span> <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Download database</a>
+  <section class="card quick-links" style="margin-top: var(--gap);">
+    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">👥 Manage participants</a>
+    <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">📦 Archived months</a>
+    <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">💾 Download database</a>
   </section>
 {% endblock %}
 {% block scripts %}

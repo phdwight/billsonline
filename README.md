@@ -330,7 +330,6 @@ billsonline/
 │   │   └── test_bdd_*.py    # Step implementations
 │   └── features/            # Gherkin feature files (5 features)
 ├── migrations/              # Alembic database migrations
-├── scripts/                 # Utility scripts
 ├── docs/                    # Documentation assets
 ├── main.py                  # ASGI entrypoint
 ├── asgi.py                  # ASGI app wrapper
