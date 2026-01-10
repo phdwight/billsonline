@@ -2,25 +2,42 @@
 {% block content %}
 <div class="card">
 {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-<h2 class="section-title">Month {{ bill.year }}-{{ month_names[bill.month-1] }} {% if bill.archived %}<span class="badge" title="Archived">Archived</span>{% endif %}</h2>
+<div class="card-header">
+  <h2 class="section-title">📅 {{ month_names[bill.month-1] }} {{ bill.year }} {% if bill.archived %}<span class="badge-archived">🔒 Archived</span>{% endif %}</h2>
+  <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+</div>
 
-<p>
+<div class="month-detail-actions">
   {% if not bill.archived %}
-  <a class="btn btn-secondary" href="{{ url_for('months.edit', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
+  <a class="btn btn-action" href="{{ url_for('months.edit', bill_id=bill.id) }}"><svg class="icon"><use href="#icon-edit"/></svg><span class="action-label">Edit amounts</span></a>
   {% endif %}
-  <a class="btn btn-secondary" href="{{ url_for('months.export', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Download contributions <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
-  <a class="btn btn-secondary" href="{{ url_for('admin.admin') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to Admin</a>
-  {% if bill.archived %}
-  <form method="post" action="{{ url_for('months.delete', bill_id=bill.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+  <a class="btn btn-action" href="{{ url_for('months.export', bill_id=bill.id) }}"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">Export CSV</span></a>
+  {% if not bill.archived %}
+  <form method="post" action="{{ url_for('months.archive', bill_id=bill.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-secondary"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
+    <button type="submit" class="btn btn-action"><svg class="icon"><use href="#icon-archive"/></svg><span class="action-label">Archive</span></button>
   </form>
+  {% else %}
+  <form method="post" action="{{ url_for('months.unarchive', bill_id=bill.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-action"><svg class="icon"><use href="#icon-unarchive"/></svg><span class="action-label">Restore</span></button>
+  </form>
+  <div class="action-more">
+    <button type="button" class="btn btn-action btn-more" title="More options" onclick="toggleMoreActions(this)">⋮</button>
+    <div class="more-actions-dropdown">
+      <form method="post" action="{{ url_for('months.delete', bill_id=bill.id) }}" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="dropdown-item dropdown-item-danger"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete permanently</button>
+      </form>
+    </div>
+  </div>
   {% endif %}
-  
-</p>
+</div>
 
-<section style="margin-top: var(--gap);">
-  <h3>Enter Meter Readings</h3>
+<section class="card" style="margin-top: var(--gap);">
+  <div class="card-header">
+    <h3>⚡ Meter Readings</h3>
+  </div>
   {% if bill.archived %}
   <div class="muted"><small>This month is archived. Readings cannot be changed.</small></div>
   <table class="adj-table">
@@ -45,7 +62,7 @@
       </tbody>
     </table>
   {% else %}
-  <form method="post" action="{{ url_for('months.readings_update', bill_id=bill.id) }}">
+  <form method="post" action="{{ url_for('months.readings_update', bill_id=bill.id) }}" class="readings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="adj-table">
       <thead>
@@ -77,26 +94,23 @@
   </section>
 
   <section class="card" style="margin-top: var(--gap);">
-    <h3>Month Participants</h3>
+    <div class="card-header">
+      <h3>👥 Month Participants</h3>
+    </div>
     {% if bill.archived %}
       <div class="muted"><small>This month is archived. Membership cannot be changed.</small></div>
     {% else %}
-    <form method="post" action="{{ url_for('months.participants_create', bill_id=bill.id) }}" style="display:flex; gap:.5rem; align-items:end;">
+    <form method="post" action="{{ url_for('months.participants_create', bill_id=bill.id) }}" class="inline-add-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div>
-        <label><small>Link participant</small></label>
-        <select name="participant_id">
-          <option value="">— Select —</option>
-          {% for p in participants %}
-            {% if p.id not in member_ids %}
-              <option value="{{ p.id }}">{{ p.name }}</option>
-            {% endif %}
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Add</button>
-      </div>
+      <select name="participant_id">
+        <option value="">Link participant...</option>
+        {% for p in participants %}
+          {% if p.id not in member_ids %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <button class="btn btn-primary btn-icon" type="submit" title="Add participant">+</button>
     </form>
     {% endif %}
 
@@ -127,34 +141,32 @@
   </section>
 
   <section class="card" style="margin-top: var(--gap);">
-    <h3>Components</h3>
+    <div class="card-header">
+      <h3>🧱 Components</h3>
+    </div>
     {% if bill.archived %}
       <div class="muted"><small>This month is archived. Components cannot be changed.</small></div>
     {% else %}
-    <form method="post" action="{{ url_for('components.create', bill_id=bill.id) }}" style="margin-bottom: .75rem; display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:.5rem; align-items:end;">
+    <form method="post" action="{{ url_for('components.create', bill_id=bill.id) }}" class="component-add-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div>
-        <label><small>Name</small></label>
-        <input type="text" name="component_name" placeholder="e.g., Electricity" required>
+      <div class="row">
+        <label><small>Name</small>
+          <input type="text" name="component_name" placeholder="e.g., Electricity" required>
+        </label>
+        <label><small>Amount</small>
+          <input type="number" name="component_amount" step="0.01" min="0" required>
+        </label>
+        <label><small>Split</small>
+          <select name="component_split_method">
+            <option value="equal">Equal</option>
+            <option value="usage">By usage</option>
+          </select>
+        </label>
+        <label><small>Position</small>
+          <input type="number" name="component_position" step="1" value="0">
+        </label>
       </div>
-      <div>
-        <label><small>Amount</small></label>
-        <input type="number" name="component_amount" step="0.01" min="0" required>
-      </div>
-      <div>
-        <label><small>Split</small></label>
-        <select name="component_split_method">
-          <option value="equal">Equal</option>
-          <option value="usage">By usage</option>
-        </select>
-      </div>
-      <div>
-        <label><small>Position</small></label>
-        <input type="number" name="component_position" step="1" value="0">
-      </div>
-      <div>
-        <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Add</button>
-      </div>
+      <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Add Component</button>
     </form>
     {% endif %}
 
@@ -214,7 +226,9 @@
   </section>
 
 <section class="card" style="margin-top: var(--gap);">
-  <h3>Per-Component Adjustments</h3>
+  <div class="card-header">
+    <h3>🔧 Per-Component Adjustments</h3>
+  </div>
   {% if not components %}
     <div class="muted"><small>No components to adjust.</small></div>
   {% elif bill.archived %}
@@ -326,7 +340,9 @@
 </section>
 
 <section class="card" style="margin-top: var(--gap);">
-  <h3>Contributions</h3>
+  <div class="card-header">
+    <h3>💰 Contributions</h3>
+  </div>
   {% if components and dynamic_contributions %}
   <p class="muted" style="margin-top:.25rem;"><small>
     Totals reflect your dynamic components. The CSV export uses these columns.
@@ -376,5 +392,18 @@ initMonthDetail(
   {{ (components or [])|map(attribute="id")|list|tojson|safe }},
   {{ (dynamic_base_maps or {})|tojson|safe }}
 );
+
+// More actions dropdown toggle
+function toggleMoreActions(btn) {
+  const container = btn.closest('.action-more');
+  const wasOpen = container.classList.contains('open');
+  document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  if (!wasOpen) container.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.action-more')) {
+    document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
+  }
+});
 </script>
 {% endblock %}

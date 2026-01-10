@@ -5,9 +5,11 @@ SQLAlchemy==2.0.45
 pydantic==2.12.5
 pytest==9.0.2
 pytest-bdd==8.1.0
+pytest-playwright==0.7.2
+playwright==1.57.0
 python-dotenv==1.2.1
 Flask-WTF==1.2.2
 WTForms==3.2.1
 openpyxl==3.1.5
-uvicorn==0.38.0
+uvicorn==0.40.0
 asgiref==3.11.0

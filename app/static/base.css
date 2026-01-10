@@ -664,3 +664,350 @@ ul li a {
 		display: none;
 	}
 }
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES - iPhone & Portrait
+   ============================================ */
+
+/* iPhone 17 Pro Max and similar devices */
+@media (max-width: 480px) {
+	/* Prevent horizontal scrolling */
+	body {
+		overflow-x: hidden;
+		-webkit-text-size-adjust: 100%;
+	}
+	
+	/* Container adjustments for better use of screen space */
+	.container {
+		width: 100%;
+		padding: 0.75rem;
+	}
+	
+	header .container {
+		padding: 0.5rem 0.75rem;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	
+	/* Brand and navigation */
+	.brand {
+		font-size: 1rem;
+	}
+	
+	nav {
+		display: flex;
+		gap: 0.5rem;
+		width: 100%;
+		justify-content: flex-start;
+	}
+	
+	nav a {
+		margin-left: 0;
+		font-size: 0.9rem;
+	}
+	
+	/* Grid to single column */
+	.grid {
+		grid-template-columns: 1fr;
+		gap: 1rem;
+	}
+	
+	/* Card adjustments */
+	.card {
+		padding: 0.875rem;
+		border-radius: 12px;
+	}
+	
+	.section-title {
+		font-size: 1.25rem;
+		margin-bottom: 0.875rem;
+	}
+	
+	/* Form elements - larger touch targets */
+	label {
+		font-size: 0.95rem;
+		gap: 0.5rem;
+	}
+	
+	input[type="text"],
+	input[type="number"],
+	select {
+		padding: 0.75rem;
+		font-size: 16px; /* Prevents zoom on iOS */
+		border-radius: 10px;
+	}
+	
+	/* Buttons - larger touch targets */
+	button, .btn {
+		padding: 0.75rem 1rem;
+		font-size: 1rem;
+		border-radius: 10px;
+		min-height: 44px; /* iOS recommended minimum */
+	}
+	
+	.btn-sm {
+		padding: 0.5rem 0.75rem;
+		font-size: 0.9rem;
+		min-height: 36px;
+	}
+	
+	/* Row layout - stack vertically on mobile */
+	.row {
+		grid-template-columns: 1fr;
+		gap: 0.75rem;
+	}
+	
+	/* Stack spacing */
+	.stack > * {
+		margin-bottom: 0.875rem;
+	}
+	
+	/* Tables - improve mobile readability */
+	table {
+		font-size: 0.9rem;
+		display: block;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	
+	thead, tbody, tr {
+		display: table;
+		width: 100%;
+		table-layout: fixed;
+	}
+	
+	th, td {
+		padding: 0.6rem 0.5rem;
+		word-wrap: break-word;
+	}
+	
+	th {
+		font-size: 0.85rem;
+	}
+	
+	/* Hide less important table columns on mobile */
+	.month-table th:nth-child(3),
+	.month-table td:nth-child(3) {
+		display: none;
+	}
+	
+	/* Participant list */
+	.participant-list li {
+		padding: 0.75rem;
+		font-size: 1rem;
+	}
+	
+	.participant-avatar {
+		width: 36px;
+		height: 36px;
+		font-size: 1rem;
+	}
+	
+	/* Flash messages */
+	.flashes li {
+		padding: 0.75rem;
+		font-size: 0.95rem;
+		margin: 0.5rem 0;
+	}
+	
+	/* Badges */
+	.badge,
+	.badge-archived,
+	.badge-file {
+		font-size: 0.75rem;
+		padding: 0.15rem 0.4rem;
+	}
+	
+	/* Admin navigation */
+	.admin-nav {
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	
+	.admin-nav .btn {
+		width: 100%;
+		text-align: center;
+	}
+	
+	/* Upload form */
+	.upload-form {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	
+	.upload-form .btn {
+		width: 100%;
+	}
+	
+	/* Theme selector */
+	.theme-selector {
+		justify-content: space-around;
+	}
+	
+	.theme-swatch {
+		width: 4rem;
+		height: 4rem;
+	}
+	
+	/* Version footer - adjust position */
+	.version-footer {
+		position: static;
+		text-align: center;
+		margin-top: 2rem;
+		padding: 1rem;
+		opacity: 0.8;
+	}
+	
+	/* Reduce blob animations on mobile for performance */
+	.blob {
+		filter: blur(40px);
+		opacity: 0.1;
+	}
+	
+	.blob-1 {
+		width: 300px;
+		height: 300px;
+	}
+	
+	.blob-2 {
+		width: 250px;
+		height: 250px;
+	}
+	
+	.blob-3 {
+		width: 200px;
+		height: 200px;
+	}
+	
+	/* Details/Summary mobile optimization */
+	details summary {
+		padding: 0.75rem;
+		font-size: 0.95rem;
+	}
+	
+	details summary::before {
+		font-size: 0.7rem;
+		margin-right: 0.6rem;
+	}
+	
+	/* Component editor rows */
+	.comp-row {
+		grid-template-columns: 1fr !important;
+		gap: 0.75rem !important;
+	}
+	
+	.comp-row label {
+		width: 100%;
+	}
+	
+	.comp-editor {
+		margin: 0.5rem 0;
+		padding: 0.875rem;
+	}
+	
+	.comp-editor .row {
+		grid-template-columns: 1fr !important;
+	}
+	
+	/* Redis box */
+	.redis-box {
+		padding: 0.75rem;
+		margin-top: 0.5rem;
+	}
+	
+	/* Pagination on mobile */
+	.pagination {
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		padding: 0.75rem 0;
+	}
+	
+	.pagination .btn {
+		min-width: 80px;
+	}
+	
+	/* Palette legend - stack on mobile */
+	.palette-legend {
+		display: flex;
+		flex-wrap: wrap;
+		margin-top: 0.5rem;
+		margin-left: 0;
+	}
+	
+	.swatch {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+	
+	/* Make touch targets for checkboxes larger */
+	input[type="checkbox"] {
+		width: 20px;
+		height: 20px;
+		cursor: pointer;
+	}
+	
+	/* Improve form labels spacing */
+	label small {
+		font-size: 0.9rem;
+		margin-bottom: 0.25rem;
+	}
+	
+	/* Ensure buttons don't break on mobile */
+	button,
+	.btn {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	
+	/* Icon sizing */
+	.icon {
+		width: 1.1em;
+		height: 1.1em;
+	}
+}
+
+/* Tablet and small desktop adjustments */
+@media (min-width: 481px) and (max-width: 768px) {
+	.container {
+		width: 95vw;
+		padding: 0.875rem;
+	}
+	
+	.grid {
+		grid-template-columns: 1fr;
+		gap: 1.25rem;
+	}
+	
+	.row {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 0.75rem;
+	}
+	
+	input[type="text"],
+	input[type="number"],
+	select {
+		font-size: 16px; /* Prevents zoom on iOS */
+	}
+}
+
+/* Landscape phone orientation */
+@media (max-height: 480px) and (orientation: landscape) {
+	header .container {
+		padding: 0.4rem 0.75rem;
+	}
+	
+	.section-title {
+		font-size: 1.1rem;
+		margin-bottom: 0.5rem;
+	}
+	
+	.card {
+		padding: 0.6rem;
+	}
+	
+	main .container {
+		padding-top: 0.75rem;
+		padding-bottom: 1rem;
+	}
+}

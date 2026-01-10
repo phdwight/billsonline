@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 <section class="stack">
-  <h1>Settings</h1>
+  <div class="page-header">
+    <h1>⚙️ Settings</h1>
+    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  </div>
   
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -14,7 +17,9 @@
   {% endwith %}
   
   <div class="card">
-    <h2 class="section-title">Theme</h2>
+    <div class="card-header">
+      <h2 class="section-title">🎨 Theme</h2>
+    </div>
     <p class="muted">Choose your preferred color theme.</p>
     <div class="theme-selector">
       <label class="theme-option">
@@ -31,32 +36,32 @@
   </div>
   
   <div class="card">
-    <h2 class="section-title">Database Management</h2>
+    <div class="card-header">
+      <h2 class="section-title">💾 Database</h2>
+    </div>
     
-    <div class="stack">
+    <div class="db-actions-grid">
       <div class="db-section">
-        <h3>Download Database</h3>
-        <p class="muted">Download a backup of the current database.</p>
+        <h3>Backup</h3>
+        <p class="muted">Download a copy of your data.</p>
         <a href="{{ url_for('settings.database_download') }}" class="btn btn-primary">
           <svg class="icon icon-left"><use href="#icon-csv"/></svg>
           Download Database
         </a>
       </div>
       
-      <hr class="divider">
-      
-      <div class="db-section">
-        <h3>Upload Database</h3>
-        <p class="muted">Replace the current database with an uploaded file. A backup will be created automatically.</p>
-        <p class="warning-text">⚠️ Warning: This will replace all existing data!</p>
+      <div class="db-section db-section-danger">
+        <h3>Restore</h3>
+        <p class="muted">Replace current data with a backup file.</p>
+        <p class="warning-text">⚠️ This will replace all existing data!</p>
         
         <form method="post" action="{{ url_for('settings.database_upload') }}" enctype="multipart/form-data" id="upload-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="file-input-label">
             <input type="file" name="database" accept=".db" required id="db-file-input">
-            <span class="btn btn-secondary" id="file-label">
+            <span class="btn btn-secondary">
               <svg class="icon icon-left"><use href="#icon-csv"/></svg>
-              Select & Upload .db file
+              Select .db file
             </span>
           </label>
         </form>

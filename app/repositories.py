@@ -20,10 +20,13 @@ class ParticipantRepository:
         return Participant.query.order_by(Participant.name).all()
 
     def get(self, participant_id: int) -> Optional[Participant]:
-        return Participant.query.get(participant_id)
+        return db.session.get(Participant, participant_id)
 
     def update(self, participant_id: int, name: str) -> Participant:
-        p = Participant.query.get_or_404(participant_id)
+        p = db.session.get(Participant, participant_id)
+        if p is None:
+            from flask import abort
+            abort(404)
         p.name = name
         db.session.commit()
         return p
@@ -71,7 +74,7 @@ class MonthlyBillRepository:
         )
 
     def get_by_id(self, bill_id: int) -> Optional[MonthlyBill]:
-        return MonthlyBill.query.get(bill_id)
+        return db.session.get(MonthlyBill, bill_id)
 
     def get_previous(self, year: int, month: int) -> Optional[MonthlyBill]:
         # naive previous month calculation
@@ -85,7 +88,10 @@ class MonthlyBillRepository:
         return MonthlyBill.query.filter_by(year=year, month=month).first()
 
     def update_amounts(self, bill_id: int, electricity: float, water: float, internet: float) -> MonthlyBill:
-        bill = MonthlyBill.query.get_or_404(bill_id)
+        bill = db.session.get(MonthlyBill, bill_id)
+        if bill is None:
+            from flask import abort
+            abort(404)
         bill.electricity_amount = electricity
         bill.water_amount = water
         bill.internet_amount = internet
@@ -93,12 +99,18 @@ class MonthlyBillRepository:
         return bill
 
     def delete(self, bill_id: int) -> None:
-        bill = MonthlyBill.query.get_or_404(bill_id)
+        bill = db.session.get(MonthlyBill, bill_id)
+        if bill is None:
+            from flask import abort
+            abort(404)
         db.session.delete(bill)
         db.session.commit()
 
     def set_archived(self, bill_id: int, archived: bool) -> MonthlyBill:
-        bill = MonthlyBill.query.get_or_404(bill_id)
+        bill = db.session.get(MonthlyBill, bill_id)
+        if bill is None:
+            from flask import abort
+            abort(404)
         bill.archived = archived
         db.session.commit()
         return bill
@@ -182,7 +194,10 @@ class BillComponentRepository:
         position: int | None = None,
         distribution=None
     ) -> BillComponent:
-        comp = BillComponent.query.get_or_404(component_id)
+        comp = db.session.get(BillComponent, component_id)
+        if comp is None:
+            from flask import abort
+            abort(404)
         if name is not None:
             comp.name = name.strip()
         if amount is not None:
@@ -197,7 +212,10 @@ class BillComponentRepository:
         return comp
 
     def delete(self, component_id: int) -> None:
-        comp = BillComponent.query.get_or_404(component_id)
+        comp = db.session.get(BillComponent, component_id)
+        if comp is None:
+            from flask import abort
+            abort(404)
         db.session.delete(comp)
         db.session.commit()
 

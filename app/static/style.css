@@ -8,6 +8,8 @@
 /* Participant list enhancements */
 .participant-list {
 	margin-top: 1rem;
+	list-style: none;
+	padding: 0;
 }
 
 .participant-item {
@@ -53,55 +55,19 @@
 /* Month list enhancements */
 .month-list {
 	margin-top: 1rem;
+	list-style: none;
+	padding: 0;
 }
 
-.month-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 0.5rem;
-	opacity: 0;
-	animation: list-fade-in 0.4s ease forwards;
-	flex-wrap: wrap;
-}
-
-.month-link {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-weight: 500;
-	text-decoration: none !important;
-	color: var(--text);
-	transition: color 0.2s ease;
-}
-
-.month-link:hover {
-	color: var(--primary);
-}
-
-.month-link::after {
-	display: none !important;
-}
-
-.month-icon {
-	font-size: 1.2rem;
-	transition: transform 0.3s ease;
-}
-
-.month-item:hover .month-icon {
-	transform: rotate(10deg) scale(1.1);
-}
-
-.month-actions {
-	display: flex;
-	align-items: center;
-	gap: 0.25rem;
-	opacity: 0.6;
-	transition: opacity 0.2s ease;
-}
-
-.month-item:hover .month-actions {
-	opacity: 1;
+@keyframes list-fade-in {
+	from {
+		opacity: 0;
+		transform: translateX(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
 }
 
 /* Empty state styling */
@@ -148,4 +114,565 @@
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+}
+
+/* ============================================
+   CARD HEADER - Title with inline actions
+   ============================================ */
+
+.card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.75rem;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.card-header .section-title {
+	margin-bottom: 0;
+}
+
+.card-header .btn-link {
+	font-size: 0.85rem;
+	opacity: 0.8;
+	transition: opacity 0.2s ease;
+}
+
+.card-header .btn-link:hover {
+	opacity: 1;
+}
+
+/* ============================================
+   INPUT WITH BUTTON - Compact add form
+   ============================================ */
+
+.input-with-button {
+	display: flex;
+	gap: 0.5rem;
+	align-items: stretch;
+}
+
+.input-with-button input {
+	flex: 1;
+	min-width: 0;
+}
+
+.btn-icon {
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.5rem;
+	font-weight: 400;
+	flex-shrink: 0;
+}
+
+/* ============================================
+   ACTION BUTTONS - Month item actions
+   ============================================ */
+
+.btn-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35rem;
+	padding: 0.4rem 0.6rem;
+	background: var(--input-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	color: var(--text);
+	font-size: 0.8rem;
+	transition: all 0.2s ease;
+	white-space: nowrap;
+}
+
+.btn-action:hover {
+	background: var(--primary);
+	color: var(--primary-contrast);
+	border-color: var(--primary);
+	transform: translateY(-1px);
+}
+
+.btn-action .icon {
+	width: 1rem;
+	height: 1rem;
+}
+
+.btn-action .action-label {
+	display: none;
+}
+
+.btn-more {
+	font-size: 1.2rem;
+	font-weight: bold;
+	letter-spacing: 1px;
+	padding: 0.4rem 0.5rem;
+}
+
+/* ============================================
+   MORE ACTIONS DROPDOWN
+   ============================================ */
+
+.action-more {
+	position: relative;
+}
+
+.more-actions-dropdown {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	min-width: 140px;
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+	z-index: 100;
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(-8px);
+	transition: all 0.2s ease;
+}
+
+.action-more.open .more-actions-dropdown {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(4px);
+}
+
+.dropdown-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.6rem 0.75rem;
+	background: none;
+	border: none;
+	color: var(--text);
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	text-align: left;
+}
+
+.dropdown-item:hover {
+	background: var(--input-bg);
+}
+
+.dropdown-item:first-child {
+	border-radius: 7px 7px 0 0;
+}
+
+.dropdown-item:last-child {
+	border-radius: 0 0 7px 7px;
+}
+
+.dropdown-item-danger {
+	color: var(--error);
+}
+
+.dropdown-item-danger:hover {
+	background: rgba(220, 38, 38, 0.1);
+}
+
+/* ============================================
+   MONTH ITEM - Improved layout
+   ============================================ */
+
+.month-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.75rem;
+	background: var(--input-bg);
+	border-radius: 10px;
+	margin-bottom: 0.5rem;
+	transition: all 0.2s ease;
+	opacity: 0;
+	animation: list-fade-in 0.4s ease forwards;
+}
+
+.month-item:hover {
+	background: var(--table-row-hover);
+	transform: translateX(2px);
+}
+
+.month-item:active {
+	transform: scale(0.99);
+}
+
+.month-link {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	font-weight: 600;
+	text-decoration: none !important;
+	color: var(--text);
+	transition: color 0.2s ease;
+	flex: 1;
+	min-width: 0;
+	padding: 0.25rem 0;
+}
+
+.month-link:hover {
+	color: var(--primary);
+}
+
+.month-link::after {
+	display: none !important;
+}
+
+.month-icon {
+	font-size: 1.3rem;
+	flex-shrink: 0;
+	transition: transform 0.3s ease;
+}
+
+.month-item:hover .month-icon {
+	transform: rotate(10deg) scale(1.1);
+}
+
+.month-name {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.month-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex-shrink: 0;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE OVERRIDES FOR INDEX PAGE
+   ============================================ */
+
+@media (max-width: 480px) {
+	/* Card header mobile */
+	.card-header {
+		margin-bottom: 1rem;
+	}
+	
+	.card-header .btn-link {
+		font-size: 0.9rem;
+		padding: 0.4rem 0.6rem;
+		background: var(--input-bg);
+		border-radius: 6px;
+	}
+	
+	/* Input with button - full width */
+	.input-with-button {
+		flex-direction: row;
+	}
+	
+	.input-with-button input {
+		font-size: 16px;
+	}
+	
+	.btn-icon {
+		width: 48px;
+		height: 48px;
+		font-size: 1.75rem;
+	}
+	
+	/* Month item - improved mobile layout */
+	.month-item {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.75rem;
+		padding: 0.875rem;
+	}
+	
+	.month-link {
+		font-size: 1.05rem;
+	}
+	
+	.month-icon {
+		font-size: 1.5rem;
+	}
+	
+	.month-actions {
+		justify-content: space-between;
+		width: 100%;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--border);
+	}
+	
+	/* Show action labels on mobile for clarity */
+	.btn-action {
+		flex: 1;
+		padding: 0.6rem 0.5rem;
+		justify-content: center;
+	}
+	
+	.btn-action .action-label {
+		display: inline;
+		font-size: 0.75rem;
+	}
+	
+	.btn-more {
+		flex: 0;
+		padding: 0.6rem 0.75rem;
+	}
+	
+	/* Dropdown positioning on mobile */
+	.more-actions-dropdown {
+		right: 0;
+		min-width: 160px;
+	}
+	
+	/* Quick links - full width buttons */
+	.quick-links {
+		flex-direction: column;
+		gap: 0.75rem !important;
+	}
+	
+	.quick-links .btn-secondary {
+		width: 100%;
+		justify-content: center;
+		padding: 0.875rem;
+	}
+	
+	/* Empty state */
+	.empty-state {
+		padding: 1.25rem !important;
+		font-size: 0.95rem;
+	}
+	
+	/* Participant list mobile optimization */
+	.participant-item {
+		padding: 0.875rem 0.75rem;
+	}
+	
+	.participant-avatar {
+		width: 40px;
+		height: 40px;
+		font-size: 1rem;
+	}
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+	/* Tablet adjustments */
+	.month-actions {
+		gap: 0.4rem;
+	}
+	
+	.btn-action .action-label {
+		display: inline;
+	}
+	
+	.quick-links .btn-secondary {
+		flex: 1 1 auto;
+		min-width: 140px;
+	}
+}
+
+/* Desktop - show labels on hover */
+@media (min-width: 769px) {
+	.btn-action:hover .action-label {
+		display: inline;
+	}
+}
+
+/* ============================================
+   ADDITIONAL PAGE-SPECIFIC STYLES
+   ============================================ */
+
+/* Page header with back button */
+.page-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-bottom: 1rem;
+}
+
+.page-header h1 {
+	margin: 0;
+	font-size: 1.75rem;
+}
+
+/* Participant edit list */
+.participant-edit-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
+.participant-edit-row {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.participant-edit-row .input-with-button {
+	flex: 1;
+}
+
+/* Archived list */
+.archived-list .month-link {
+	flex-wrap: wrap;
+}
+
+.archived-item {
+	background: rgba(255, 225, 148, 0.1);
+	border-left: 3px solid var(--warning);
+}
+
+/* Month detail actions */
+.month-detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-bottom: 1rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.month-detail-actions .btn-action {
+	padding: 0.5rem 0.75rem;
+}
+
+.month-detail-actions .btn-action .action-label {
+	display: inline;
+}
+
+/* Inline add form */
+.inline-add-form {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	margin-bottom: 0.75rem;
+}
+
+.inline-add-form select {
+	flex: 1;
+	max-width: 300px;
+}
+
+/* Component add form */
+.component-add-form {
+	margin-bottom: 1rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.component-add-form .row {
+	margin-bottom: 0.75rem;
+}
+
+/* Form actions */
+.form-actions {
+	display: flex;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--border);
+}
+
+/* Database actions grid */
+.db-actions-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 1.5rem;
+}
+
+.db-section-danger {
+	padding: 1rem;
+	background: rgba(220, 38, 38, 0.05);
+	border-radius: var(--radius);
+	border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* Readings form */
+.readings-form table {
+	margin-bottom: 1rem;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE FOR NEW COMPONENTS
+   ============================================ */
+
+@media (max-width: 480px) {
+	.page-header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	
+	.page-header h1 {
+		font-size: 1.5rem;
+	}
+	
+	.page-header .btn-secondary {
+		align-self: flex-start;
+	}
+	
+	/* Participant edit row */
+	.participant-edit-row {
+		flex-wrap: wrap;
+	}
+	
+	.participant-edit-row .participant-avatar {
+		flex-shrink: 0;
+	}
+	
+	.participant-edit-row .input-with-button {
+		width: 100%;
+		order: 3;
+	}
+	
+	/* Month detail actions */
+	.month-detail-actions {
+		flex-direction: column;
+	}
+	
+	.month-detail-actions .btn-action {
+		width: 100%;
+		justify-content: center;
+	}
+	
+	.month-detail-actions .action-more {
+		width: 100%;
+	}
+	
+	.month-detail-actions .btn-more {
+		width: 100%;
+	}
+	
+	/* Inline add form */
+	.inline-add-form {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	
+	.inline-add-form select {
+		max-width: none;
+	}
+	
+	/* Component add form */
+	.component-add-form .row {
+		grid-template-columns: 1fr !important;
+	}
+	
+	/* Database grid */
+	.db-actions-grid {
+		grid-template-columns: 1fr;
+	}
+	
+	/* Form actions */
+	.form-actions {
+		flex-direction: column;
+	}
+	
+	.form-actions .btn {
+		width: 100%;
+		justify-content: center;
+	}
 }

@@ -2,42 +2,47 @@
 {% block content %}
 <div class="card">
   {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-  <h2 class="section-title">Edit Month {{ bill.year }}-{{ month_names[bill.month-1] }}</h2>
+  <div class="card-header">
+    <h2 class="section-title">✏️ Edit {{ month_names[bill.month-1] }} {{ bill.year }}</h2>
+    <a href="{{ url_for('months.show', bill_id=bill.id) }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Cancel</a>
+  </div>
+  
   <form method="post" class="stack">
     {{ form.csrf_token }}
-    <label>
-      Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}
-      <div class="muted"><small>Split:
-        <select name="legacy_electricity_split">
-          <option value="usage" selected>Usage</option>
-          <option value="percentage">Percentage</option>
-          <option value="amount">Amount</option>
-        </select>
-      </small></div>
-    </label>
-    <label>
-      Water Amount {{ form.water_amount(step='0.01', required=True) }}
-      <div class="muted"><small>Split:
-        <select name="legacy_water_split">
-          <option value="equal" selected>Equal</option>
-          <option value="percentage">Percentage</option>
-          <option value="amount">Amount</option>
-        </select>
-      </small></div>
-    </label>
-    <label>
-      Internet Amount {{ form.internet_amount(step='0.01', required=True) }}
-      <div class="muted"><small>Split:
-        <select name="legacy_internet_split">
-          <option value="equal" selected>Equal</option>
-          <option value="percentage">Percentage</option>
-          <option value="amount">Amount</option>
-        </select>
-      </small></div>
-    </label>
-    <div style="display:flex; gap:.5rem; align-items:center;">
-      <button class="btn btn-primary" type="submit">Save</button>
-      <a class="btn btn-secondary" href="{{ url_for('months.show', bill_id=bill.id) }}">Cancel</a>
+    <div class="row">
+      <label>
+        Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split:
+          <select name="legacy_electricity_split">
+            <option value="usage" selected>Usage</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+      <label>
+        Water Amount {{ form.water_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split:
+          <select name="legacy_water_split">
+            <option value="equal" selected>Equal</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+      <label>
+        Internet Amount {{ form.internet_amount(step='0.01', required=True) }}
+        <div class="muted"><small>Split:
+          <select name="legacy_internet_split">
+            <option value="equal" selected>Equal</option>
+            <option value="percentage">Percentage</option>
+            <option value="amount">Amount</option>
+          </select>
+        </small></div>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Changes</button>
     </div>
   </form>
 </div>

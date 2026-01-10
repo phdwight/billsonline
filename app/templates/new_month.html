@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-  <h2 class="section-title">Create New Month</h2>
+  <div class="card-header">
+    <h2 class="section-title">➕ Create New Month</h2>
+    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Cancel</a>
+  </div>
   <form method="post" action="{{ url_for('months.create') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
     {{ form.csrf_token }}
     <div class="row">
@@ -89,8 +92,9 @@
       </div>
       <button type="button" class="btn btn-secondary" onclick="addCompRow(this)">+ Add another</button>
     </details>
-    <button class="btn btn-primary" type="submit">Create Month</button>
-    <a class="btn btn-secondary" href="{{ url_for('home.index') }}">Cancel</a>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">✨ Create Month</button>
+    </div>
   </form>
   <p class="muted" style="margin-top:.5rem;"><small>Participants: {{ participants|length }} configured. You can add more in Participants.</small></p>
 </div>

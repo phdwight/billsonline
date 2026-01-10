@@ -1,30 +1,24 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="card">
-<h2 class="section-title">Participants</h2>
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
+  <div class="card-header">
+    <h2 class="section-title">👥 Manage Participants</h2>
+    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  </div>
+  
+  <div class="participant-edit-list">
     {% for p in participants %}
-    <tr>
-      <form method="post" action="{{ url_for('participants.update', pid=p.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <td>
-          <input type="text" name="name" value="{{ p.name }}" required>
-        </td>
-        <td>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </td>
-      </form>
-    </tr>
+    <form method="post" action="{{ url_for('participants.update', pid=p.id) }}" class="participant-edit-row">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="participant-avatar">{{ p.name[0].upper() }}</span>
+      <div class="input-with-button">
+        <input type="text" name="name" value="{{ p.name }}" required>
+        <button type="submit" class="btn btn-primary btn-icon" title="Save changes">✓</button>
+      </div>
+    </form>
+    {% else %}
+    <div class="empty-state">No participants yet. Add one from the home page.</div>
     {% endfor %}
-  </tbody>
-</table>
-<p style="margin-top:.75rem;"><a class="btn btn-secondary" href="{{ url_for('home.index') }}">Back</a></p>
+  </div>
 </div>
 {% endblock %}
