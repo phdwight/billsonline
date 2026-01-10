@@ -1,2 +1,151 @@
 /* Main stylesheet - imports base and all theme files */
 @import url('base.css');
+
+/* ============================================
+   INDEX PAGE SPECIFIC STYLES
+   ============================================ */
+
+/* Participant list enhancements */
+.participant-list {
+	margin-top: 1rem;
+}
+
+.participant-item {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	opacity: 0;
+	animation: list-fade-in 0.4s ease forwards;
+}
+
+.participant-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--primary), var(--accent-1));
+	color: white;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 600;
+	font-size: 0.85rem;
+	flex-shrink: 0;
+	box-shadow: 0 2px 8px rgba(76,76,109,0.2);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.participant-item:hover .participant-avatar {
+	transform: scale(1.1) rotate(5deg);
+	box-shadow: 0 4px 12px rgba(76,76,109,0.3);
+}
+
+@keyframes list-fade-in {
+	from {
+		opacity: 0;
+		transform: translateX(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+/* Month list enhancements */
+.month-list {
+	margin-top: 1rem;
+}
+
+.month-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	opacity: 0;
+	animation: list-fade-in 0.4s ease forwards;
+	flex-wrap: wrap;
+}
+
+.month-link {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-weight: 500;
+	text-decoration: none !important;
+	color: var(--text);
+	transition: color 0.2s ease;
+}
+
+.month-link:hover {
+	color: var(--primary);
+}
+
+.month-link::after {
+	display: none !important;
+}
+
+.month-icon {
+	font-size: 1.2rem;
+	transition: transform 0.3s ease;
+}
+
+.month-item:hover .month-icon {
+	transform: rotate(10deg) scale(1.1);
+}
+
+.month-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	opacity: 0.6;
+	transition: opacity 0.2s ease;
+}
+
+.month-item:hover .month-actions {
+	opacity: 1;
+}
+
+/* Empty state styling */
+.empty-state {
+	color: var(--muted);
+	font-style: italic;
+	text-align: center;
+	padding: 1.5rem !important;
+	background: var(--input-bg);
+	border-radius: var(--radius);
+	border-left: none !important;
+}
+
+.empty-state:hover {
+	transform: none !important;
+	background: var(--input-bg) !important;
+}
+
+/* Quick links enhancement */
+.quick-links {
+	display: flex !important;
+	flex-wrap: wrap;
+	gap: 0.75rem !important;
+	justify-content: center;
+}
+
+.quick-links .btn-secondary {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	transition: all 0.25s ease;
+}
+
+.quick-links .btn-secondary:hover {
+	background: linear-gradient(135deg, var(--primary), var(--accent-1));
+	color: white;
+	border-color: transparent;
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(76,76,109,0.25);
+}
+
+/* Section title icons */
+.section-title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
