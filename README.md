@@ -1,7 +1,7 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/tests-189%20passing-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/tests-156%20passing-brightgreen)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -21,7 +21,7 @@ Splitting bills in a shared household is often complicated:
 ## Key Concepts
 
 ### Participants
-The people sharing the bills (e.g., Alice, Bob, Charlie). Add them once and they're available for all months.
+The people sharing the bills (e.g., Alice, Bob, Charlie). Add them once and they're available for all months. When creating a new month, you can select which participants to include - only selected participants will appear in that month's readings, adjustments, and contributions.
 
 ### Monthly Bills
 Each month gets its own bill entry containing multiple components and meter readings.
@@ -85,6 +85,8 @@ When someone shouldn't pay for a component (e.g., they were away):
 ### Participant Management
 - **Add/Edit/Delete**: Manage household participants
 - **Unique Names**: Prevents duplicate participant names
+- **Per-Month Selection**: Choose which participants to include when creating a new month
+- **Flexible Membership**: Add or remove participants from existing months as needed
 
 ### Settings & Backup
 - **Database Backup**: Download timestamped database backups
@@ -186,7 +188,7 @@ uvicorn asgi:app --host 0.0.0.0 --port 8000 --workers 2
 ### Getting Started
 
 1. **Add Participants**: Go to Admin and add participants (e.g., Alice, Bob, Charlie)
-2. **Create a Month**: Create a new monthly bill entry
+2. **Create a Month**: Create a new monthly bill entry and select which participants to include (all are selected by default)
 3. **Add Components**: Add bill components with amounts and splitting methods
 4. **Enter Readings**: For usage-based components, enter meter readings
 5. **View Results**: See the calculated contributions table
@@ -200,11 +202,20 @@ To exclude Alice from Internet for January:
 4. Choose redistribution method (equal to others, or custom percentages)
 5. Save - Alice pays $0, others pay her share
 
+### Participant Selection Example
+
+To create a month where only Alice and Bob are included (Charlie is excluded):
+1. Go to Admin page
+2. Click "Create New Month"
+3. Uncheck Charlie's checkbox in the "Select Participants for this Month" section
+4. Fill in the month details and bill amounts
+5. Submit - only Alice and Bob will appear in that month's calculations
+
 ---
 
 ## Tests
 
-The project includes comprehensive test coverage with **189 tests** across unit tests, BDD tests, and UI tests.
+The project includes comprehensive test coverage with **156 tests** across unit tests, BDD tests, and UI tests.
 
 ### Run All Tests
 
@@ -221,7 +232,7 @@ pytest --cov=app --cov-report=term-missing tests/
 
 ### Test Categories
 
-#### Unit Tests (144 tests)
+#### Unit Tests (151 tests)
 
 Located in `tests/`:
 - `test_calculator.py` - Bill calculation logic (splitting, redistribution)
@@ -235,6 +246,7 @@ Located in `tests/`:
 - `test_dynamic_services_extra.py` - Service layer edge cases
 - `test_custom_redistribution.py` - Custom redistribution rules
 - `test_custom_redistribution_edges.py` - Edge cases for redistribution
+- `test_month_participant_selection.py` - Participant selection during month creation
 - `test_version.py` - Version utility tests
 
 #### BDD Tests (28 tests)
