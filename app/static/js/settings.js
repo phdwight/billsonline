@@ -6,7 +6,21 @@
   document.addEventListener('DOMContentLoaded', function() {
     initThemeSelector();
     initDatabaseUpload();
+    showFlashAlert();
   });
+
+  /**
+   * Show an alert if there's a success message (for visibility)
+   */
+  function showFlashAlert() {
+    const successMsg = document.querySelector('.status-success');
+    if (successMsg) {
+      // Scroll to top to ensure message is visible
+      window.scrollTo(0, 0);
+      // Also show an alert for clear feedback
+      alert(successMsg.textContent.trim());
+    }
+  }
 
   /**
    * Initialize theme selector radio buttons
@@ -32,15 +46,20 @@
    */
   function initDatabaseUpload() {
     const fileInput = document.getElementById('db-file-input');
-    if (!fileInput) return;
+    const uploadForm = document.getElementById('upload-form');
+    const uploadIndicator = document.getElementById('upload-indicator');
+    
+    if (!fileInput || !uploadForm) return;
 
     fileInput.addEventListener('change', function(e) {
       if (this.files.length > 0) {
         const fileName = this.files[0].name;
         if (confirm('Are you sure you want to replace the database with "' + fileName + '"? This action cannot be undone.')) {
-          document.getElementById('file-label').classList.add('hidden');
-          document.getElementById('upload-indicator').classList.remove('hidden');
-          document.getElementById('upload-form').submit();
+          // Show upload indicator
+          if (uploadIndicator) {
+            uploadIndicator.classList.remove('hidden');
+          }
+          uploadForm.submit();
         } else {
           this.value = '';
         }
