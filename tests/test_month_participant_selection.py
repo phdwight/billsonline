@@ -56,16 +56,16 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": three_participants,
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=1).first()
             assert bill is not None
-            
+
             month_participants = MonthParticipant.query.filter_by(month_id=bill.id).all()
             assert len(month_participants) == 3
-            
+
             participant_ids = {mp.participant_id for mp in month_participants}
             assert participant_ids == set(three_participants)
 
@@ -73,7 +73,7 @@ class TestMonthParticipantSelection:
         """Test creating a month with only some participants selected."""
         # Select only Alice and Bob
         selected = [three_participants[0], three_participants[1]]
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 2,
@@ -82,16 +82,16 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": selected,
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=2).first()
             assert bill is not None
-            
+
             month_participants = MonthParticipant.query.filter_by(month_id=bill.id).all()
             assert len(month_participants) == 2
-            
+
             participant_ids = {mp.participant_id for mp in month_participants}
             assert participant_ids == set(selected)
             # Charlie should not be included
@@ -100,7 +100,7 @@ class TestMonthParticipantSelection:
     def test_create_month_with_single_participant(self, client, app, three_participants):
         """Test creating a month with only one participant selected."""
         selected = [three_participants[0]]  # Only Alice
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 3,
@@ -109,13 +109,13 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": selected,
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=3).first()
             assert bill is not None
-            
+
             month_participants = MonthParticipant.query.filter_by(month_id=bill.id).all()
             assert len(month_participants) == 1
             assert month_participants[0].participant_id == three_participants[0]
@@ -130,17 +130,17 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             # No selected_participants field
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=4).first()
             assert bill is not None
-            
+
             month_participants = MonthParticipant.query.filter_by(month_id=bill.id).all()
             # Should default to all participants
             assert len(month_participants) == 3
-            
+
             participant_ids = {mp.participant_id for mp in month_participants}
             assert participant_ids == set(three_participants)
 
@@ -148,7 +148,7 @@ class TestMonthParticipantSelection:
         """Test that month detail page shows only the selected participants."""
         # Create month with only Alice and Bob
         selected = [three_participants[0], three_participants[1]]
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 5,
@@ -157,27 +157,27 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": selected,
         }, follow_redirects=True)
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=5).first()
             bill_id = bill.id
-        
+
         # View the month detail page
         response = client.get(f"/months/{bill_id}")
         assert response.status_code == 200
-        
+
         # The page should show Alice and Bob but the meter readings section
         # should only show inputs for selected participants
         assert b"Alice" in response.data
         assert b"Bob" in response.data
-        # Charlie should still appear in the full participants list (for the "add participant" dropdown)
-        # but not in the member list
+        # Charlie should still appear in the full participants list
+        # (for the "add participant" dropdown) but not in the member list
 
     def test_can_add_participant_to_month_later(self, client, app, three_participants):
         """Test that participants can be added to a month after creation."""
         # Create month with only Alice
         selected = [three_participants[0]]
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 6,
@@ -186,20 +186,20 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": selected,
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=6).first()
             bill_id = bill.id
-        
+
         # Add Bob to the month
         response = client.post(f"/months/{bill_id}/participants", data={
             "participant_id": three_participants[1],
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             month_participants = MonthParticipant.query.filter_by(month_id=bill_id).all()
             assert len(month_participants) == 2
@@ -211,7 +211,7 @@ class TestMonthParticipantSelection:
         """Test that participants can be removed from a month."""
         # Create month with Alice and Bob
         selected = [three_participants[0], three_participants[1]]
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 7,
@@ -220,19 +220,21 @@ class TestMonthParticipantSelection:
             "internet_amount": 30.0,
             "selected_participants": selected,
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=7).first()
             bill_id = bill.id
-        
+
         # Remove Bob from the month
-        response = client.post(f"/months/{bill_id}/participants/{three_participants[1]}/delete", 
-                             follow_redirects=True)
-        
+        response = client.post(
+            f"/months/{bill_id}/participants/{three_participants[1]}/delete",
+            follow_redirects=True
+        )
+
         assert response.status_code == 200
-        
+
         with app.app_context():
             month_participants = MonthParticipant.query.filter_by(month_id=bill_id).all()
             assert len(month_participants) == 1

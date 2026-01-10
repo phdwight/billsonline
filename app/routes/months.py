@@ -135,11 +135,11 @@ def create():
     if selected_participant_ids:
         # Convert to integers
         selected_participant_ids = [int(pid) for pid in selected_participant_ids if pid]
-    
+
     # Default: if no selection was made, include all participants (backward compatibility)
     if not selected_participant_ids:
         selected_participant_ids = [p.id for p in participants]
-    
+
     # Add only selected participants to the month
     try:
         for pid in selected_participant_ids:
@@ -172,7 +172,10 @@ def create():
         if sp in ("percentage", "amount"):
             distribution = _parse_component_distribution(i, participants, request.form)
         try:
-            component_repo.add(bill.id, name=n, amount=amt, split_method=sp, position=pos, distribution=distribution)
+            component_repo.add(
+                bill.id, name=n, amount=amt, split_method=sp,
+                position=pos, distribution=distribution
+            )
         except IntegrityError:
             db.session.rollback()
             flash(f"Skipped duplicate component name '{n}' for this month.", "error")
@@ -195,24 +198,27 @@ def create():
             inet_dist = _parse_legacy_distribution("internet", participants, request.form)
 
         legacy_defs = [
-            ("Electricity", float(form.electricity_amount.data or 0), legacy_elec_split, 0, elec_dist),
-            ("Water", float(form.water_amount.data or 0), legacy_water_split, 1, water_dist),
-            ("Internet", float(form.internet_amount.data or 0), legacy_inet_split, 2, inet_dist),
+            ("Electricity", float(form.electricity_amount.data or 0),
+             legacy_elec_split, 0, elec_dist),
+            ("Water", float(form.water_amount.data or 0),
+             legacy_water_split, 1, water_dist),
+            ("Internet", float(form.internet_amount.data or 0),
+             legacy_inet_split, 2, inet_dist),
         ]
         for (nm, amt, sp, pos, dist) in legacy_defs:
             if amt and amt > 0:
                 try:
+                    split = sp if sp in ("usage", "equal", "percentage", "amount") else "equal"
                     component_repo.add(
                         bill.id,
                         name=nm,
                         amount=amt,
-                        split_method=sp if sp in ("usage", "equal", "percentage", "amount") else "equal",
+                        split_method=split,
                         position=pos,
                         distribution=(dist or None),
                     )
                 except IntegrityError:
                     db.session.rollback()
-                    pass
     except Exception:
         pass
 
