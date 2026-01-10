@@ -6,12 +6,12 @@
 
 <p>
   {% if not bill.archived %}
-  <a class="btn btn-secondary" href="{{ url_for('main.edit_month', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
+  <a class="btn btn-secondary" href="{{ url_for('months.edit', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit amounts</a>
   {% endif %}
-  <a class="btn btn-secondary" href="{{ url_for('main.export_month_csv', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Download contributions <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
-  <a class="btn btn-secondary" href="{{ url_for('main.admin') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to Admin</a>
+  <a class="btn btn-secondary" href="{{ url_for('months.export', bill_id=bill.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>Download contributions <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
+  <a class="btn btn-secondary" href="{{ url_for('admin.admin') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back to Admin</a>
   {% if bill.archived %}
-  <form method="post" action="{{ url_for('main.delete_month', bill_id=bill.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+  <form method="post" action="{{ url_for('months.delete', bill_id=bill.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-secondary"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
   </form>
@@ -45,7 +45,7 @@
       </tbody>
     </table>
   {% else %}
-  <form method="post" action="{{ url_for('main.submit_readings', bill_id=bill.id) }}">
+  <form method="post" action="{{ url_for('months.readings_update', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <table class="adj-table">
       <thead>
@@ -81,7 +81,7 @@
     {% if bill.archived %}
       <div class="muted"><small>This month is archived. Membership cannot be changed.</small></div>
     {% else %}
-    <form method="post" action="{{ url_for('main.add_month_participant', bill_id=bill.id) }}" style="display:flex; gap:.5rem; align-items:end;">
+    <form method="post" action="{{ url_for('months.participants_create', bill_id=bill.id) }}" style="display:flex; gap:.5rem; align-items:end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label><small>Link participant</small></label>
@@ -111,7 +111,7 @@
               <td>{{ p.name }}</td>
               <td>
                 {% if not bill.archived %}
-                <form method="post" action="{{ url_for('main.remove_month_participant', bill_id=bill.id, pid=p.id) }}" style="display:inline;">
+                <form method="post" action="{{ url_for('months.participants_delete', bill_id=bill.id, pid=p.id) }}" style="display:inline;">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-secondary" type="submit" onclick="return confirm('Unlink {{ p.name }} from this month?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Remove</button>
                 </form>
@@ -131,7 +131,7 @@
     {% if bill.archived %}
       <div class="muted"><small>This month is archived. Components cannot be changed.</small></div>
     {% else %}
-    <form method="post" action="{{ url_for('main.add_component', bill_id=bill.id) }}" style="margin-bottom: .75rem; display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:.5rem; align-items:end;">
+    <form method="post" action="{{ url_for('components.create', bill_id=bill.id) }}" style="margin-bottom: .75rem; display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:.5rem; align-items:end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div>
         <label><small>Name</small></label>
@@ -178,7 +178,7 @@
           <td>{{ comp.position }}</td>
           <td style="white-space:nowrap;">
             {% if not bill.archived %}
-            <form method="post" action="{{ url_for('main.update_component', bill_id=bill.id, component_id=comp.id) }}" style="display:inline-flex; gap:.25rem; align-items:center;">
+            <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" style="display:inline-flex; gap:.25rem; align-items:center;">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="text" name="name" placeholder="Rename" style="width:9rem;">
               <input type="number" name="amount" step="0.01" min="0" placeholder="Amount" style="width:7rem;">
@@ -190,7 +190,7 @@
               <input type="number" name="position" step="1" placeholder="#" style="width:4rem;">
               <button class="btn btn-secondary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Update</button>
             </form>
-            <form method="post" action="{{ url_for('main.delete_component', bill_id=bill.id, component_id=comp.id) }}" style="display:inline">
+            <form method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-secondary" type="submit" onclick="return confirm('Delete component {{ comp.name }}?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
             </form>
@@ -206,7 +206,7 @@
       <div class="muted"><small>No components yet. Add one above.</small></div>
     {% endif %}
     {% if not components and (bill.electricity_amount or bill.water_amount or bill.internet_amount) and not bill.archived %}
-      <form method="post" action="{{ url_for('main.convert_legacy_to_dynamic', bill_id=bill.id) }}" style="margin-top:.5rem;">
+      <form method="post" action="{{ url_for('components.convert_legacy', bill_id=bill.id) }}" style="margin-top:.5rem;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-secondary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Convert legacy amounts to components</button>
       </form>
@@ -271,7 +271,7 @@
       </tbody>
     </table>
   {% else %}
-  <form id="comp-adjustments-form" method="post" action="{{ url_for('main.save_component_adjustments', bill_id=bill.id) }}">
+  <form id="comp-adjustments-form" method="post" action="{{ url_for('adjustments.update', bill_id=bill.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <table>
       <thead>
@@ -369,77 +369,12 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/month-detail.js') }}"></script>
 <script>
-(function(){
-  function fmt(n){ if (isNaN(n)) return '0.00'; return (Math.round(n*100)/100).toFixed(2); }
-  function recomputeDynamicPanel(compId, pid, baseMap){
-    const modeSel = document.getElementById(`mode_comp_${compId}_${pid}`);
-    if (!modeSel) return;
-    const mode = modeSel.value;
-    const summary = document.querySelector(`[data-redis-summary='comp-${compId}-${pid}'] small`);
-    let sum = 0;
-    const inputs = document.querySelectorAll(`input[id^=redis_comp_${compId}_${pid}_]`);
-    inputs.forEach(inp => { const v = parseFloat(inp.value); if (!isNaN(v)) sum += v; });
-    if (mode === 'percent'){
-      summary.textContent = `Sum: ${fmt(sum)}% (needs 100%)`;
-      summary.style.color = Math.abs(sum - 100) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
-    } else if (mode === 'amount'){
-      const base = parseFloat(baseMap[String(pid)] || baseMap[pid] || 0);
-      summary.textContent = `Sum: ₱${fmt(sum)} (needs ₱${fmt(base)})`;
-      summary.style.color = Math.abs(sum - base) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
-    } else {
-      const anyVal = Array.from(inputs).some(inp => { const v = parseFloat(inp.value); return !isNaN(v) && v > 0; });
-      summary.textContent = anyVal ? 'Select a mode (Percent or Amount) or clear values' : 'No redistribution';
-      summary.style.color = anyVal ? 'var(--error-color, #b00020)' : 'var(--muted-color, #666)';
-    }
-  }
-  function wireDynamicAdjustments(){
-    const componentsMeta = JSON.parse('{{ (components or [])|map(attribute="id")|list|tojson|safe }}');
-    const dynamicBaseMaps = JSON.parse('{{ (dynamic_base_maps or {})|tojson|safe }}');
-    (componentsMeta || []).forEach(compId => {
-      const baseMap = dynamicBaseMaps[String(compId)] || dynamicBaseMaps[compId] || {};
-      const rows = document.querySelectorAll(`[data-panel^='comp-${compId}-']`);
-      rows.forEach(panel => {
-        const pid = panel.getAttribute('data-panel').split('-').pop();
-        const modeSel = document.getElementById(`mode_comp_${compId}_${pid}`);
-        if (!modeSel) return;
-        modeSel.addEventListener('change', () => { panel.style.display = modeSel.value ? 'block' : 'none'; recomputeDynamicPanel(compId, pid, baseMap); });
-        const inputs = document.querySelectorAll(`input[id^=redis_comp_${compId}_${pid}_]`);
-        inputs.forEach(inp => inp.addEventListener('input', () => { panel.style.display = 'block'; recomputeDynamicPanel(compId, pid, baseMap); }));
-        // Open panel if there is an existing rule or mode selected
-        const hasExisting = Array.from(inputs).some(i => { const v = parseFloat(i.value); return !isNaN(v) && v > 0; }) || (modeSel.value === 'percent' || modeSel.value === 'amount');
-        if (hasExisting){ panel.style.display = 'block'; }
-        recomputeDynamicPanel(compId, pid, baseMap);
-      });
-    });
-    // header toggles
-    document.querySelectorAll('.comp-adj-toggle').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const compId = btn.getAttribute('data-comp');
-        const panels = document.querySelectorAll(`[data-panel^='comp-${compId}-']`);
-        const anyVisible = Array.from(panels).some(p => getComputedStyle(p).display !== 'none');
-        const nextShow = !anyVisible;
-        panels.forEach(p => p.style.display = nextShow ? 'block' : 'none');
-        const icon = btn.querySelector('.adj-toggle-icon');
-        if (icon) icon.textContent = nextShow ? '▾' : '▸';
-        btn.setAttribute('aria-expanded', nextShow ? 'true' : 'false');
-      });
-    });
-    document.querySelectorAll('.comp-adj-toggle-all').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const panels = document.querySelectorAll(`.comp-redis-box`);
-        const anyVisible = Array.from(panels).some(p => getComputedStyle(p).display !== 'none');
-        const nextShow = !anyVisible;
-        panels.forEach(p => p.style.display = nextShow ? 'block' : 'none');
-        const icon = btn.querySelector('.adj-toggle-icon');
-        if (icon) icon.textContent = nextShow ? '▾' : '▸';
-        btn.setAttribute('aria-expanded', nextShow ? 'true' : 'false');
-      });
-    });
-  }
-  document.addEventListener('DOMContentLoaded', function(){
-    wireDynamicAdjustments();
-  });
-})();
+// Initialize with component data from server
+initMonthDetail(
+  {{ (components or [])|map(attribute="id")|list|tojson|safe }},
+  {{ (dynamic_base_maps or {})|tojson|safe }}
+);
 </script>
 {% endblock %}

@@ -101,24 +101,24 @@ class TestAdminRoute:
 
 class TestParticipantRoutes:
     def test_participants_page(self, client):
-        response = client.get("/participants")
+        response = client.get("/participants/")
         assert response.status_code == 200
 
     def test_add_participant(self, client, app):
-        response = client.post("/participants", data={"name": "Alice"}, follow_redirects=True)
+        response = client.post("/participants/", data={"name": "Alice"}, follow_redirects=True)
         assert response.status_code == 200
         with app.app_context():
             p = Participant.query.filter_by(name="Alice").first()
             assert p is not None
 
     def test_add_participant_empty_name(self, client):
-        response = client.post("/participants", data={"name": ""}, follow_redirects=True)
+        response = client.post("/participants/", data={"name": ""}, follow_redirects=True)
         assert response.status_code == 200
         assert b"Name is required" in response.data or b"error" in response.data.lower()
 
     def test_add_duplicate_participant(self, client, app):
-        client.post("/participants", data={"name": "Bob"})
-        response = client.post("/participants", data={"name": "bob"}, follow_redirects=True)  # Case insensitive
+        client.post("/participants/", data={"name": "Bob"})
+        response = client.post("/participants/", data={"name": "bob"}, follow_redirects=True)  # Case insensitive
         assert response.status_code == 200
         with app.app_context():
             count = Participant.query.filter_by(name="Bob").count()
@@ -126,7 +126,7 @@ class TestParticipantRoutes:
 
     def test_update_participant(self, client, app, sample_participant):
         response = client.post(
-            f"/participants/{sample_participant}/update",
+            f"/participants/{sample_participant}",
             data={"name": "UpdatedName"},
             follow_redirects=True
         )
@@ -137,7 +137,7 @@ class TestParticipantRoutes:
 
     def test_update_participant_empty_name(self, client, sample_participant):
         response = client.post(
-            f"/participants/{sample_participant}/update",
+            f"/participants/{sample_participant}",
             data={"name": ""},
             follow_redirects=True
         )
@@ -206,7 +206,7 @@ class TestMonthRoutes:
 
 class TestComponentRoutes:
     def test_add_component(self, client, app, sample_bill):
-        response = client.post(f"/months/{sample_bill}/components/add", data={
+        response = client.post(f"/months/{sample_bill}/components", data={
             "component_name": "Gas",
             "component_amount": 75.0,
             "component_split_method": "equal",
@@ -219,7 +219,7 @@ class TestComponentRoutes:
             assert comp.amount == 75.0
 
     def test_add_component_empty_name(self, client, sample_bill):
-        response = client.post(f"/months/{sample_bill}/components/add", data={
+        response = client.post(f"/months/{sample_bill}/components", data={
             "component_name": "",
             "component_amount": 75.0,
             "component_split_method": "equal",
@@ -228,7 +228,7 @@ class TestComponentRoutes:
         assert b"required" in response.data.lower()
 
     def test_add_component_invalid_split(self, client, sample_bill):
-        response = client.post(f"/months/{sample_bill}/components/add", data={
+        response = client.post(f"/months/{sample_bill}/components", data={
             "component_name": "Invalid",
             "component_amount": 75.0,
             "component_split_method": "invalid_method",
@@ -241,7 +241,7 @@ class TestComponentRoutes:
             bill = db.session.get(MonthlyBill, sample_bill)
             bill.archived = True
             db.session.commit()
-        response = client.post(f"/months/{sample_bill}/components/add", data={
+        response = client.post(f"/months/{sample_bill}/components", data={
             "component_name": "NewComp",
             "component_amount": 100.0,
             "component_split_method": "equal",
@@ -255,7 +255,7 @@ class TestComponentRoutes:
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        response = client.post(f"/months/{sample_bill}/components/{comp_id}/update", data={
+        response = client.post(f"/months/{sample_bill}/components/{comp_id}", data={
             "name": "Updated",
             "amount": 200.0,
             "split_method": "usage",
@@ -281,7 +281,7 @@ class TestComponentRoutes:
 
 class TestMonthParticipantRoutes:
     def test_add_month_participant(self, client, app, sample_bill, sample_participant):
-        response = client.post(f"/months/{sample_bill}/participants/add", data={
+        response = client.post(f"/months/{sample_bill}/participants", data={
             "participant_id": sample_participant,
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -291,11 +291,11 @@ class TestMonthParticipantRoutes:
 
     def test_remove_month_participant(self, client, app, sample_bill, sample_participant):
         # First add through proper repository to ensure it works
-        client.post(f"/months/{sample_bill}/participants/add", data={
+        client.post(f"/months/{sample_bill}/participants", data={
             "participant_id": sample_participant,
         })
         # Then remove
-        response = client.post(f"/months/{sample_bill}/participants/{sample_participant}/remove", follow_redirects=True)
+        response = client.post(f"/months/{sample_bill}/participants/{sample_participant}/delete", follow_redirects=True)
         assert response.status_code == 200
         assert b"unlinked" in response.data.lower()
 
@@ -304,7 +304,7 @@ class TestMonthParticipantRoutes:
             bill = db.session.get(MonthlyBill, sample_bill)
             bill.archived = True
             db.session.commit()
-        response = client.post(f"/months/{sample_bill}/participants/add", data={
+        response = client.post(f"/months/{sample_bill}/participants", data={
             "participant_id": sample_participant,
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -319,7 +319,7 @@ class TestConvertLegacyRoute:
             db.session.add(bill)
             db.session.commit()
             bill_id = bill.id
-        response = client.post(f"/months/{bill_id}/components/convert-from-legacy", follow_redirects=True)
+        response = client.post(f"/months/{bill_id}/components/convert-legacy", follow_redirects=True)
         assert response.status_code == 200
         with app.app_context():
             comps = BillComponent.query.filter_by(month_id=bill_id).all()
@@ -335,7 +335,7 @@ class TestConvertLegacyRoute:
             comp = BillComponent(month_id=sample_bill, name="Existing", amount=100.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
-        response = client.post(f"/months/{sample_bill}/components/convert-from-legacy", follow_redirects=True)
+        response = client.post(f"/months/{sample_bill}/components/convert-legacy", follow_redirects=True)
         assert response.status_code == 200
         assert b"already has components" in response.data.lower()
 
@@ -344,7 +344,7 @@ class TestConvertLegacyRoute:
             bill = db.session.get(MonthlyBill, sample_bill)
             bill.archived = True
             db.session.commit()
-        response = client.post(f"/months/{sample_bill}/components/convert-from-legacy", follow_redirects=True)
+        response = client.post(f"/months/{sample_bill}/components/convert-legacy", follow_redirects=True)
         assert response.status_code == 200
         assert b"archived" in response.data.lower()
 
@@ -376,7 +376,7 @@ class TestArchiveRoutes:
             bill = MonthlyBill(year=2025, month=9, electricity_amount=100, water_amount=50, internet_amount=30, archived=True)
             db.session.add(bill)
             db.session.commit()
-        response = client.get("/archived")
+        response = client.get("/months/archived")
         assert response.status_code == 200
 
 
@@ -391,24 +391,24 @@ class TestDeleteRoute:
 
 class TestSettingsRoute:
     def test_settings_page_returns_200(self, client):
-        response = client.get("/settings")
+        response = client.get("/settings/")
         assert response.status_code == 200
         assert b"Settings" in response.data
         assert b"Database Management" in response.data
 
     def test_settings_page_has_download_link(self, client):
-        response = client.get("/settings")
+        response = client.get("/settings/")
         assert b"Download Database" in response.data
 
     def test_settings_page_has_upload_form(self, client):
-        response = client.get("/settings")
+        response = client.get("/settings/")
         assert b"Upload Database" in response.data
         assert b'enctype="multipart/form-data"' in response.data
         # Single button for select & upload
         assert b"Select" in response.data and b"Upload .db file" in response.data
 
     def test_settings_page_has_upload_indicator(self, client):
-        response = client.get("/settings")
+        response = client.get("/settings/")
         assert b"upload-indicator" in response.data
         assert b"Uploading..." in response.data
 
@@ -416,28 +416,28 @@ class TestSettingsRoute:
 class TestDatabaseDownloadRoute:
     def test_download_database_redirects_for_memory_db(self, client):
         """In-memory database cannot be downloaded, should redirect with error."""
-        response = client.get("/download-database", follow_redirects=True)
+        response = client.get("/settings/database", follow_redirects=True)
         assert response.status_code == 200
         # Should redirect to settings with error flash
 
 
 class TestDatabaseUploadRoute:
     def test_upload_no_file(self, client):
-        response = client.post("/upload-database", follow_redirects=True)
+        response = client.post("/settings/database", follow_redirects=True)
         assert response.status_code == 200
         assert b"No file uploaded" in response.data
 
     def test_upload_empty_filename(self, client):
         from io import BytesIO
         data = {"database": (BytesIO(b""), "")}
-        response = client.post("/upload-database", data=data, content_type="multipart/form-data", follow_redirects=True)
+        response = client.post("/settings/database", data=data, content_type="multipart/form-data", follow_redirects=True)
         assert response.status_code == 200
         assert b"No file selected" in response.data
 
     def test_upload_invalid_file_type(self, client):
         from io import BytesIO
         data = {"database": (BytesIO(b"test content"), "test.txt")}
-        response = client.post("/upload-database", data=data, content_type="multipart/form-data", follow_redirects=True)
+        response = client.post("/settings/database", data=data, content_type="multipart/form-data", follow_redirects=True)
         assert response.status_code == 200
         assert b"Invalid file type" in response.data
 

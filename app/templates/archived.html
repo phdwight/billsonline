@@ -9,9 +9,9 @@
       <svg class="icon icon-left"><use href="#icon-lock"/></svg>Archived
     </span>
     · {{ m.year }}-{{ month_names[m.month-1] }}
-  <a class="btn btn-link btn-sm" href="{{ url_for('main.month_detail', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-view"/></svg>View</a>
-  <a class="btn btn-link btn-sm" href="{{ url_for('main.export_month_csv', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
-  <form method="post" action="{{ url_for('main.delete_month', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
+  <a class="btn btn-link btn-sm" href="{{ url_for('months.show', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-view"/></svg>View</a>
+  <a class="btn btn-link btn-sm" href="{{ url_for('months.export', bill_id=m.id) }}"><svg class="icon icon-left"><use href="#icon-csv"/></svg>CSV <span class="badge-file" aria-label="File type: CSV">CSV</span></a>
+  <form method="post" action="{{ url_for('months.delete', bill_id=m.id) }}" style="display:inline" onsubmit="return confirm('Delete this archived month? This cannot be undone.')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-link btn-sm"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
   </form>
@@ -29,8 +29,8 @@
 </nav>
 {% endif %}
 <p>
-  <a class="btn btn-secondary" href="{{ url_for('main.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  <a class="btn btn-secondary" href="{{ url_for('home.index') }}"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
   <span class="muted">·</span>
-  <a class="btn btn-secondary" href="{{ url_for('main.download_db') }}">Download database</a>
+  <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Download database</a>
 </p>
 {% endblock %}

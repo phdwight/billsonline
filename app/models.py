@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from .extensions import db
 
@@ -10,7 +9,8 @@ class Participant(db.Model):
     __tablename__ = "participants"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False, unique=True)
-    # include_in_internet removed; adjustments now control exclusions (column may still exist in DB for backward compatibility)
+    # include_in_internet removed; adjustments now control exclusions
+    # (column may still exist in DB for backward compatibility)
 
     readings = db.relationship("MeterReading", back_populates="participant", cascade="all, delete-orphan")
 
@@ -66,25 +66,6 @@ class MonthParticipant(db.Model):
     __table_args__ = (
         db.UniqueConstraint("month_id", "participant_id", name="uq_month_participant"),
     )
-
-
-class MonthlyAdjustment(db.Model):
-    __tablename__ = "monthly_adjustments"
-    id = db.Column(db.Integer, primary_key=True)
-    month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False)
-    participant_id = db.Column(db.Integer, db.ForeignKey("participants.id"), nullable=False)
-    zero_electricity = db.Column(db.Boolean, default=False, nullable=False)
-    zero_water = db.Column(db.Boolean, default=False, nullable=False)
-    zero_internet = db.Column(db.Boolean, default=False, nullable=False)
-    # Optional redistribution rules per component: {"mode": "percent"|"amount", "targets": {participant_id: value, ...}}
-    redis_electricity = db.Column(db.JSON, nullable=True)
-    redis_water = db.Column(db.JSON, nullable=True)
-    redis_internet = db.Column(db.JSON, nullable=True)
-
-    month = db.relationship("MonthlyBill")
-    participant = db.relationship("Participant")
-
-    __table_args__ = (db.UniqueConstraint("month_id", "participant_id", name="uq_adjustment_month_participant"),)
 
 
 class BillComponent(db.Model):

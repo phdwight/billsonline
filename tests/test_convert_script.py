@@ -26,8 +26,8 @@ def test_convert_month_idempotent(tmp_path, monkeypatch):
         assert created == 3
         assert skipped == 0
         comps = BillComponent.query.filter_by(month_id=bill.id).order_by(BillComponent.position.asc()).all()
-        assert [c.name for c in comps] == ['Electricity','Water','Internet']
-        assert [c.split_method for c in comps] == ['usage','equal','equal']
+        assert [c.name for c in comps] == ['Electricity', 'Water', 'Internet']
+        assert [c.split_method for c in comps] == ['usage', 'equal', 'equal']
         # Run again: should skip
         created2, skipped2 = convert_month(bill, repo)
         assert created2 == 0

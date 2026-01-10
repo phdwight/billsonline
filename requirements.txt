@@ -4,6 +4,7 @@ Flask-Migrate==4.1.0
 SQLAlchemy==2.0.45
 pydantic==2.12.5
 pytest==9.0.2
+pytest-bdd==8.1.0
 python-dotenv==1.2.1
 Flask-WTF==1.2.2
 WTForms==3.2.1

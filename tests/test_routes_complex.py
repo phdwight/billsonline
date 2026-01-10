@@ -76,8 +76,8 @@ class TestAddMonthWithComponents:
     def test_add_month_with_legacy_components(self, client, app):
         """Test that legacy electricity/water/internet become components."""
         # First create a participant
-        client.post("/participants", data={"name": "TestUser"})
-        
+        client.post("/participants/", data={"name": "TestUser"})
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 4,
@@ -86,7 +86,7 @@ class TestAddMonthWithComponents:
             "internet_amount": 45.0,
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=4).first()
             assert bill is not None
@@ -98,8 +98,8 @@ class TestAddMonthWithComponents:
 
     def test_add_month_with_custom_components(self, client, app):
         """Test adding a month with custom components via form arrays."""
-        client.post("/participants", data={"name": "TestUser"})
-        
+        client.post("/participants/", data={"name": "TestUser"})
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 5,
@@ -112,7 +112,7 @@ class TestAddMonthWithComponents:
             "comp_position[]": ["0", "1"],
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=5).first()
             assert bill is not None
@@ -124,13 +124,13 @@ class TestAddMonthWithComponents:
     def test_add_month_with_percentage_split(self, client, app):
         """Test creating a month with percentage-based component."""
         # Create participants first
-        client.post("/participants", data={"name": "Alice"})
-        client.post("/participants", data={"name": "Bob"})
-        
+        client.post("/participants/", data={"name": "Alice"})
+        client.post("/participants/", data={"name": "Bob"})
+
         with app.app_context():
             participants = Participant.query.all()
             p1_id, p2_id = participants[0].id, participants[1].id
-        
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 6,
@@ -142,7 +142,7 @@ class TestAddMonthWithComponents:
             f"legacy_electricity_dist_{p2_id}": "40",
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=6).first()
             elec = BillComponent.query.filter_by(month_id=bill.id, name="Electricity").first()
@@ -152,8 +152,8 @@ class TestAddMonthWithComponents:
 
     def test_add_month_skips_empty_component_names(self, client, app):
         """Test that empty component names are skipped."""
-        client.post("/participants", data={"name": "TestUser"})
-        
+        client.post("/participants/", data={"name": "TestUser"})
+
         response = client.post("/months", data={
             "year": 2025,
             "month": 7,
@@ -165,7 +165,7 @@ class TestAddMonthWithComponents:
             "comp_split[]": ["equal", "equal", "equal"],
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = MonthlyBill.query.filter_by(year=2025, month=7).first()
             custom_comps = BillComponent.query.filter_by(month_id=bill.id, name="ValidName").all()
@@ -180,7 +180,7 @@ class TestMeterReadings:
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
         p1, p2, p3 = setup["participant_ids"]
-        
+
         response = client.post(f"/months/{bill_id}/readings", data={
             f"current_{p1}": "200",
             f"previous_{p1}": "100",
@@ -190,7 +190,7 @@ class TestMeterReadings:
             f"previous_{p3}": "100",
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             readings = MeterReading.query.filter_by(month_id=bill_id).all()
             assert len(readings) == 3
@@ -204,13 +204,13 @@ class TestMeterReadings:
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
         p1 = setup["participant_ids"][0]
-        
+
         response = client.post(f"/months/{bill_id}/readings", data={
             f"current_{p1}": "200",
             f"previous_{p1}": "",  # Empty previous
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             reading = MeterReading.query.filter_by(month_id=bill_id, participant_id=p1).first()
             assert reading is not None
@@ -222,12 +222,12 @@ class TestMeterReadings:
         """Test that readings cannot be submitted to archived month."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             bill = db.session.get(MonthlyBill, bill_id)
             bill.archived = True
             db.session.commit()
-        
+
         response = client.post(f"/months/{bill_id}/readings", data={
             f"current_{setup['participant_ids'][0]}": "200",
         }, follow_redirects=True)
@@ -248,14 +248,14 @@ class TestComponentAdjustments:
         """Test saving adjustments without any redistribution rules."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         # First add a component
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Water", amount=90.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
-        
-        response = client.post(f"/months/{bill_id}/components/adjustments", data={}, follow_redirects=True)
+
+        response = client.post(f"/months/{bill_id}/adjustments", data={}, follow_redirects=True)
         assert response.status_code == 200
         assert b"adjustments saved" in response.data.lower()
 
@@ -264,22 +264,22 @@ class TestComponentAdjustments:
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
         p1, p2, p3 = setup["participant_ids"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Water", amount=90.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
+
         # Zero out p1's water and redistribute 60% to p2, 40% to p3
-        response = client.post(f"/months/{bill_id}/components/adjustments", data={
+        response = client.post(f"/months/{bill_id}/adjustments", data={
             f"mode_comp_{comp_id}_{p1}": "percent",
             f"redis_comp_{comp_id}_{p1}_{p2}": "60",
             f"redis_comp_{comp_id}_{p1}_{p3}": "40",
         }, follow_redirects=True)
         assert response.status_code == 200
         assert b"redistribution rule" in response.data.lower()
-        
+
         with app.app_context():
             adj = ComponentAdjustment.query.filter_by(
                 month_id=bill_id, component_id=comp_id, participant_id=p1
@@ -293,15 +293,15 @@ class TestComponentAdjustments:
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
         p1, p2, p3 = setup["participant_ids"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Water", amount=90.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
+
         # Invalid: percentages don't sum to 100
-        response = client.post(f"/months/{bill_id}/components/adjustments", data={
+        response = client.post(f"/months/{bill_id}/adjustments", data={
             f"mode_comp_{comp_id}_{p1}": "percent",
             f"redis_comp_{comp_id}_{p1}_{p2}": "30",
             f"redis_comp_{comp_id}_{p1}_{p3}": "30",  # Only 60%, not 100%
@@ -313,13 +313,13 @@ class TestComponentAdjustments:
         """Test that adjustments cannot be saved to archived month."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             bill = db.session.get(MonthlyBill, bill_id)
             bill.archived = True
             db.session.commit()
-        
-        response = client.post(f"/months/{bill_id}/components/adjustments", data={}, follow_redirects=True)
+
+        response = client.post(f"/months/{bill_id}/adjustments", data={}, follow_redirects=True)
         assert response.status_code == 200
         assert b"archived" in response.data.lower()
 
@@ -332,23 +332,22 @@ class TestCSVExport:
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
         p1, p2, p3 = setup["participant_ids"]
-        
+
         # Add components and readings
         with app.app_context():
-            bill = db.session.get(MonthlyBill, bill_id)
             # Add components
             c1 = BillComponent(month_id=bill_id, name="Electricity", amount=300.0, split_method="usage", position=0)
             c2 = BillComponent(month_id=bill_id, name="Water", amount=90.0, split_method="equal", position=1)
             db.session.add_all([c1, c2])
             db.session.commit()
-            
+
             # Add readings for usage-based split
             r1 = MeterReading(month_id=bill_id, participant_id=p1, reading_current=200, reading_previous=100)
             r2 = MeterReading(month_id=bill_id, participant_id=p2, reading_current=150, reading_previous=100)
             r3 = MeterReading(month_id=bill_id, participant_id=p3, reading_current=100, reading_previous=100)
             db.session.add_all([r1, r2, r3])
             db.session.commit()
-        
+
         response = client.get(f"/months/{bill_id}/export.csv")
         assert response.status_code == 200
         assert "text/csv" in response.content_type
@@ -365,7 +364,7 @@ class TestCSVExport:
             p = Participant(name="Solo")
             db.session.add(p)
             db.session.commit()
-            
+
             # Bill without explicit components
             bill = MonthlyBill(
                 year=2025, month=8,
@@ -376,7 +375,7 @@ class TestCSVExport:
             db.session.add(bill)
             db.session.commit()
             bill_id = bill.id
-        
+
         response = client.get(f"/months/{bill_id}/export.csv")
         assert response.status_code == 200
         assert "text/csv" in response.content_type
@@ -397,12 +396,12 @@ class TestCSVExport:
             p = Participant(name="Test")
             db.session.add(p)
             db.session.commit()
-            
+
             bill = MonthlyBill(year=2025, month=3, electricity_amount=100, water_amount=50, internet_amount=30)
             db.session.add(bill)
             db.session.commit()
             bill_id = bill.id
-        
+
         response = client.get(f"/months/{bill_id}/export.csv")
         assert response.status_code == 200
         content_disp = response.headers.get("Content-Disposition", "")
@@ -416,8 +415,8 @@ class TestUpdateMonth:
         """Test updating electricity/water/internet amounts."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
-        response = client.post(f"/months/{bill_id}/edit", data={
+
+        response = client.post(f"/months/{bill_id}", data={
             "year": 2025,
             "month": 3,
             "electricity_amount": 400.0,
@@ -425,7 +424,7 @@ class TestUpdateMonth:
             "internet_amount": 80.0,
         }, follow_redirects=True)
         assert response.status_code == 200
-        
+
         with app.app_context():
             bill = db.session.get(MonthlyBill, bill_id)
             assert bill.electricity_amount == 400.0
@@ -436,13 +435,13 @@ class TestUpdateMonth:
         """Test that archived months cannot be updated."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             bill = db.session.get(MonthlyBill, bill_id)
             bill.archived = True
             db.session.commit()
-        
-        response = client.post(f"/months/{bill_id}/edit", data={
+
+        response = client.post(f"/months/{bill_id}", data={
             "year": 2025,
             "month": 3,
             "electricity_amount": 999.0,
@@ -460,14 +459,14 @@ class TestComponentUpdateValidation:
         """Test updating component with invalid amount."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Test", amount=100.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
-        response = client.post(f"/months/{bill_id}/components/{comp_id}/update", data={
+
+        response = client.post(f"/months/{bill_id}/components/{comp_id}", data={
             "amount": "not_a_number",
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -477,14 +476,14 @@ class TestComponentUpdateValidation:
         """Test updating component with negative amount."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Test", amount=100.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
-        response = client.post(f"/months/{bill_id}/components/{comp_id}/update", data={
+
+        response = client.post(f"/months/{bill_id}/components/{comp_id}", data={
             "amount": "-50",
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -494,14 +493,14 @@ class TestComponentUpdateValidation:
         """Test updating component with invalid position."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Test", amount=100.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
-        response = client.post(f"/months/{bill_id}/components/{comp_id}/update", data={
+
+        response = client.post(f"/months/{bill_id}/components/{comp_id}", data={
             "position": "not_an_int",
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -511,14 +510,14 @@ class TestComponentUpdateValidation:
         """Test updating component with invalid split method."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
+
         with app.app_context():
             comp = BillComponent(month_id=bill_id, name="Test", amount=100.0, split_method="equal")
             db.session.add(comp)
             db.session.commit()
             comp_id = comp.id
-        
-        response = client.post(f"/months/{bill_id}/components/{comp_id}/update", data={
+
+        response = client.post(f"/months/{bill_id}/components/{comp_id}", data={
             "split_method": "invalid_method",
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -536,8 +535,8 @@ class TestConvertLegacyEdgeCases:
             db.session.add(bill)
             db.session.commit()
             bill_id = bill.id
-        
-        response = client.post(f"/months/{bill_id}/components/convert-from-legacy", follow_redirects=True)
+
+        response = client.post(f"/months/{bill_id}/components/convert-legacy", follow_redirects=True)
         assert response.status_code == 200
         assert b"no legacy amounts" in response.data.lower()
 
@@ -549,8 +548,8 @@ class TestParticipantEdgeCases:
         """Test adding participant to month without selecting one."""
         setup = setup_bill_with_participants
         bill_id = setup["bill_id"]
-        
-        response = client.post(f"/months/{bill_id}/participants/add", data={
+
+        response = client.post(f"/months/{bill_id}/participants", data={
             "participant_id": "",
         }, follow_redirects=True)
         assert response.status_code == 200
@@ -558,14 +557,14 @@ class TestParticipantEdgeCases:
 
     def test_update_participant_duplicate_name(self, client, app):
         """Test updating participant to a name that already exists."""
-        client.post("/participants", data={"name": "Alice"})
-        client.post("/participants", data={"name": "Bob"})
-        
+        client.post("/participants/", data={"name": "Alice"})
+        client.post("/participants/", data={"name": "Bob"})
+
         with app.app_context():
             bob = Participant.query.filter_by(name="Bob").first()
             bob_id = bob.id
-        
-        response = client.post(f"/participants/{bob_id}/update", data={
+
+        response = client.post(f"/participants/{bob_id}", data={
             "name": "Alice",  # Already exists
         }, follow_redirects=True)
         assert response.status_code == 200

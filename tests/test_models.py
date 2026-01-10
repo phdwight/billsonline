@@ -11,7 +11,7 @@ from app import create_app
 from app.extensions import db
 from app.models import (
     Participant, MonthlyBill, MeterReading, MonthParticipant,
-    MonthlyAdjustment, BillComponent, ComponentAdjustment
+    BillComponent, ComponentAdjustment
 )
 
 
@@ -125,47 +125,6 @@ class TestMonthParticipantModel:
             db.session.add(mp2)
             with pytest.raises(Exception):
                 db.session.commit()
-
-
-class TestMonthlyAdjustmentModel:
-    def test_create_adjustment(self, app):
-        with app.app_context():
-            p = Participant(name="Adjusted")
-            bill = MonthlyBill(year=2025, month=1, electricity_amount=100.0, water_amount=50.0, internet_amount=30.0)
-            db.session.add_all([p, bill])
-            db.session.commit()
-            adj = MonthlyAdjustment(
-                month_id=bill.id,
-                participant_id=p.id,
-                zero_electricity=True,
-                zero_water=False,
-                zero_internet=True
-            )
-            db.session.add(adj)
-            db.session.commit()
-            assert adj.id is not None
-            assert adj.zero_electricity is True
-
-    def test_adjustment_with_redistribution(self, app):
-        with app.app_context():
-            p = Participant(name="Adjusted")
-            bill = MonthlyBill(year=2025, month=1, electricity_amount=100.0, water_amount=50.0, internet_amount=30.0)
-            db.session.add_all([p, bill])
-            db.session.commit()
-            redis_rule = {"mode": "percent", "targets": {2: 100}}
-            adj = MonthlyAdjustment(
-                month_id=bill.id,
-                participant_id=p.id,
-                zero_electricity=True,
-                zero_water=False,
-                zero_internet=False,
-                redis_electricity=redis_rule
-            )
-            db.session.add(adj)
-            db.session.commit()
-            # JSON serialization converts int keys to strings
-            assert adj.redis_electricity["mode"] == "percent"
-            assert "2" in adj.redis_electricity["targets"] or 2 in adj.redis_electricity["targets"]
 
 
 class TestBillComponentModel:

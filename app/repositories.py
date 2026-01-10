@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional
+from typing import Optional
 
 from .extensions import db
-from .models import Participant, MonthlyBill, MeterReading, MonthlyAdjustment, BillComponent, ComponentAdjustment, MonthParticipant
+from .models import (
+    Participant, MonthlyBill, MeterReading,
+    BillComponent, ComponentAdjustment, MonthParticipant
+)
 
 
 class ParticipantRepository:
@@ -27,7 +30,14 @@ class ParticipantRepository:
 
 
 class MonthlyBillRepository:
-    def create(self, year: int, month: int, electricity_amount: float, water_amount: float, internet_amount: float) -> MonthlyBill:
+    def create(
+        self,
+        year: int,
+        month: int,
+        electricity_amount: float,
+        water_amount: float,
+        internet_amount: float
+    ) -> MonthlyBill:
         bill = MonthlyBill(
             year=year,
             month=month,
@@ -40,7 +50,11 @@ class MonthlyBillRepository:
         return bill
 
     def list_all(self) -> list[MonthlyBill]:
-        return MonthlyBill.query.filter_by(archived=False).order_by(MonthlyBill.year.desc(), MonthlyBill.month.desc()).all()
+        return (
+            MonthlyBill.query.filter_by(archived=False)
+            .order_by(MonthlyBill.year.desc(), MonthlyBill.month.desc())
+            .all()
+        )
 
     def get_latest(self, archived: bool = False) -> Optional[MonthlyBill]:
         return (
@@ -91,7 +105,13 @@ class MonthlyBillRepository:
 
 
 class MeterReadingRepository:
-    def upsert(self, month_id: int, participant_id: int, reading_current: float, reading_previous: float | None) -> MeterReading:
+    def upsert(
+        self,
+        month_id: int,
+        participant_id: int,
+        reading_current: float,
+        reading_previous: float | None
+    ) -> MeterReading:
         reading = MeterReading.query.filter_by(month_id=month_id, participant_id=participant_id).first()
         if reading is None:
             reading = MeterReading(month_id=month_id, participant_id=participant_id)
@@ -122,32 +142,6 @@ class MonthParticipantRepository:
         return MonthParticipant.query.filter_by(month_id=month_id).all()
 
 
-class MonthlyAdjustmentRepository:
-    def upsert(self, month_id: int, participant_id: int, zero_electricity: bool, zero_water: bool, zero_internet: bool, redis_electricity=None, redis_water=None, redis_internet=None) -> MonthlyAdjustment:
-        adj = MonthlyAdjustment.query.filter_by(month_id=month_id, participant_id=participant_id).first()
-        if adj is None:
-            adj = MonthlyAdjustment(month_id=month_id, participant_id=participant_id)
-            db.session.add(adj)
-        adj.zero_electricity = zero_electricity
-        adj.zero_water = zero_water
-        adj.zero_internet = zero_internet
-        if redis_electricity is not None:
-            adj.redis_electricity = redis_electricity
-        if redis_water is not None:
-            adj.redis_water = redis_water
-        if redis_internet is not None:
-            adj.redis_internet = redis_internet
-        db.session.commit()
-        return adj
-
-    def list_for_month(self, month_id: int) -> list[MonthlyAdjustment]:
-        return MonthlyAdjustment.query.filter_by(month_id=month_id).all()
-
-    def clear_for_month(self, month_id: int) -> None:
-        MonthlyAdjustment.query.filter_by(month_id=month_id).delete()
-        db.session.commit()
-
-
 class BillComponentRepository:
     def list_for_month(self, month_id: int) -> list[BillComponent]:
         return (
@@ -156,8 +150,21 @@ class BillComponentRepository:
             .all()
         )
 
-    def add(self, month_id: int, name: str, amount: float, split_method: str = "equal", position: int | None = None, distribution=None) -> BillComponent:
-        comp = BillComponent(month_id=month_id, name=name.strip(), amount=float(amount), split_method=split_method)
+    def add(
+        self,
+        month_id: int,
+        name: str,
+        amount: float,
+        split_method: str = "equal",
+        position: int | None = None,
+        distribution=None
+    ) -> BillComponent:
+        comp = BillComponent(
+            month_id=month_id,
+            name=name.strip(),
+            amount=float(amount),
+            split_method=split_method
+        )
         if position is not None:
             comp.position = position
         if distribution is not None:
@@ -166,7 +173,15 @@ class BillComponentRepository:
         db.session.commit()
         return comp
 
-    def update(self, component_id: int, name: str | None = None, amount: float | None = None, split_method: str | None = None, position: int | None = None, distribution=None) -> BillComponent:
+    def update(
+        self,
+        component_id: int,
+        name: str | None = None,
+        amount: float | None = None,
+        split_method: str | None = None,
+        position: int | None = None,
+        distribution=None
+    ) -> BillComponent:
         comp = BillComponent.query.get_or_404(component_id)
         if name is not None:
             comp.name = name.strip()
@@ -188,10 +203,23 @@ class BillComponentRepository:
 
 
 class ComponentAdjustmentRepository:
-    def upsert(self, month_id: int, component_id: int, participant_id: int, zero: bool, redis_rule=None) -> ComponentAdjustment:
-        adj = ComponentAdjustment.query.filter_by(month_id=month_id, component_id=component_id, participant_id=participant_id).first()
+    def upsert(
+        self,
+        month_id: int,
+        component_id: int,
+        participant_id: int,
+        zero: bool,
+        redis_rule=None
+    ) -> ComponentAdjustment:
+        adj = ComponentAdjustment.query.filter_by(
+            month_id=month_id, component_id=component_id, participant_id=participant_id
+        ).first()
         if adj is None:
-            adj = ComponentAdjustment(month_id=month_id, component_id=component_id, participant_id=participant_id)
+            adj = ComponentAdjustment(
+                month_id=month_id,
+                component_id=component_id,
+                participant_id=participant_id
+            )
             db.session.add(adj)
         adj.zero = bool(zero)
         # Always set redis_rule; allow clearing by passing None
