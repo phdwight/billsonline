@@ -7,8 +7,10 @@
     <a href="{{ url_for('months.show', bill_id=bill.id) }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Cancel</a>
   </div>
   
-  <form method="post" class="stack">
+  <form method="post" action="{{ url_for('months.update', bill_id=bill.id) }}" class="stack">
     {{ form.csrf_token }}
+    <input type="hidden" name="year" value="{{ bill.year }}">
+    <input type="hidden" name="month" value="{{ bill.month }}">
     <div class="row">
       <label>
         Electricity Amount {{ form.electricity_amount(step='0.01', required=True) }}

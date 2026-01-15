@@ -11,8 +11,9 @@ def R(pid, cur, prev):
 
 
 def test_percent_includes_self_and_zeroed_targets_leftover_equal():
-    # Three participants, water  ninety split evenly -> 30 each base
-    # Zero Bob's water; rule targets Bob himself and Charlie (self should be ignored), leftover goes equally to Alice/Charlie
+    # Three participants, water ninety split evenly -> 30 each base
+    # Zero Bob's water; rule targets Bob himself (100%) and Charlie (0%)
+    # With self-redistribution allowed, Bob gets his 30 back to himself
     A, B, C = P(1, "Alice"), P(2, "Bob"), P(3, "Charlie")
     bill = MonthlyBill(year=2025, month=10, electricity_amount=0.0,
                        water_amount=90.0, internet_amount=0.0)
@@ -26,10 +27,11 @@ def test_percent_includes_self_and_zeroed_targets_leftover_equal():
     c = BillCalculator().compute_contributions_dynamic(
         bill, [water], [], parts, [adj])
     by = {x.participant.id: x for x in c}
-    # Bob's 30 redistributes equally to remaining eligible (Alice & Charlie) => +15 each
-    assert by[A.id].components["Water"] == 45.0
-    assert by[B.id].components["Water"] == 0.0
-    assert by[C.id].components["Water"] == 45.0
+    # Bob's 30 redistributes: 100% back to self = 30
+    # Alice and Charlie remain at their base 30 each
+    assert by[A.id].components["Water"] == 30.0
+    assert by[B.id].components["Water"] == 30.0
+    assert by[C.id].components["Water"] == 30.0
     assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
 
 
@@ -138,3 +140,48 @@ def test_nonnumeric_percent_ignored_leftover_equal():
     assert by[C.id].components["Water"] == 45.0
     assert by[A.id].components["Water"] == 0.0
     assert round(sum(x.components["Water"] for x in c), 2) == bill.water_amount
+
+
+def test_zeroed_participant_receives_from_another_zeroed():
+    """
+    Scenario: Multiple zeroed participants can redistribute to each other.
+    - A redistributes to B/C/D (0% to self)
+    - B redistributes to A/B/C/D (amounts including A)
+    A should receive from B's redistribution even though A is also zeroed.
+    """
+    A, B, C, D = P(1, "A"), P(2, "B"), P(3, "C"), P(4, "D")
+    bill = MonthlyBill(year=2025, month=10, electricity_amount=0.0,
+                       water_amount=0.0, internet_amount=0.0)
+    parts = [A, B, C, D]
+    # Water: 650 split by usage 300/100/200/50 => A=300/650*650=300, etc
+    # Let's simplify: total=650, A gets ~300.00, B gets ~100.00, C~200.00, D~50.00
+    water = BillComponent(month_id=1, name="Water",
+                          amount=650.0, split_method='equal', position=0)
+    water.id = 207
+    # Equal split: 650/4 = 162.50 each base
+
+    # A zeroed: 0% to self, ~34%/33%/33% to B/C/D
+    adjA = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=A.id, zero=True,
+                               redis_rule={'mode': 'percent', 'targets': {str(A.id): 0, str(B.id): 34, str(C.id): 33, str(D.id): 33}})
+    # B zeroed: amounts totaling more than base -> normalized. 400 to A, 100 to B, 100 to C, 50 to D
+    adjB = ComponentAdjustment(month_id=1, component_id=water.id, participant_id=B.id, zero=True,
+                               redis_rule={'mode': 'amount', 'targets': {str(A.id): 400, str(B.id): 100, str(C.id): 100, str(D.id): 50}})
+
+    c = BillCalculator().compute_contributions_dynamic(
+        bill, [water], [], parts, [adjA, adjB])
+    by = {x.participant.id: x for x in c}
+
+    # Base: 162.50 each
+    # A zeroed -> 162.50 to distribute: 0% to A, 34% to B (~55.25), 33% to C (~53.625), 33% to D (~53.625)
+    # B zeroed -> 162.50 to distribute: amounts 400+100+100+50=650, normalized to 162.50
+    #   A gets 400/650 * 162.50 = 100, B gets 100/650 * 162.50 = 25, C gets 100/650 * 162.50 = 25, D gets 50/650 * 162.50 = 12.5
+
+    # Final:
+    # A: 0 + (from B's redistribution) = 100
+    # B: 162.50 + (from A) 55.25 + (from B to self) 25 = ~242.75
+    # C: 162.50 + (from A) 53.625 + (from B) 25 = ~241.125
+    # D: 162.50 + (from A) 53.625 + (from B) 12.5 = ~228.625
+
+    # Key assertion: A should NOT be zero! A should receive from B's redistribution
+    assert by[A.id].components["Water"] > 0, "A should receive from B's redistribution"
+    assert round(sum(x.components["Water"] for x in c), 2) == 650.0

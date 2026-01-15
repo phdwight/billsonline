@@ -1,7 +1,7 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/tests-156%20passing-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/tests-188%20passing-brightgreen)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -80,6 +80,8 @@ When someone shouldn't pay for a component (e.g., they were away):
   - All remaining participants equally (default)
   - Specific participants by percentage
   - Specific participants by fixed amounts
+- **Redistribution Notes**: Add optional notes to describe why a redistribution was made
+- **Computed Amounts**: See calculated amounts next to percentage inputs in real-time
 - **Multiple Adjustments**: Zero out multiple participants with cascading redistribution
 
 ### Participant Management
@@ -91,6 +93,7 @@ When someone shouldn't pay for a component (e.g., they were away):
 ### Settings & Backup
 - **Database Backup**: Download timestamped database backups
 - **Database Restore**: Upload and restore from backup files
+- **Auto Schema Migration**: Uploading older database files automatically updates the schema
 - **Version Display**: Application version shown in footer
 
 ### User Interface
@@ -230,7 +233,7 @@ To manage (edit or delete) participants:
 
 ## Tests
 
-The project includes comprehensive test coverage with **156 tests** across unit tests, BDD tests, and UI tests.
+The project includes comprehensive test coverage with **188 tests** across unit tests, BDD tests, and UI tests.
 
 ### Run All Tests
 
@@ -247,7 +250,7 @@ pytest --cov=app --cov-report=term-missing tests/
 
 ### Test Categories
 
-#### Unit Tests (151 tests)
+#### Unit Tests (160 tests)
 
 Located in `tests/`:
 - `test_calculator.py` - Bill calculation logic (splitting, redistribution)
@@ -262,6 +265,7 @@ Located in `tests/`:
 - `test_custom_redistribution.py` - Custom redistribution rules
 - `test_custom_redistribution_edges.py` - Edge cases for redistribution
 - `test_month_participant_selection.py` - Participant selection during month creation
+- `test_database_restore.py` - Database restore and auto-migration
 - `test_version.py` - Version utility tests
 
 #### BDD Tests (28 tests)

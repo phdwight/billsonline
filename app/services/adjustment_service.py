@@ -154,8 +154,6 @@ class AdjustmentService:
                 targets = {}
 
                 for tpid in pids:
-                    if tpid == pid:
-                        continue
                     raw = form_data.get(f"redis_comp_{comp.id}_{pid}_{tpid}")
                     if raw is None or raw == "":
                         continue
@@ -169,6 +167,9 @@ class AdjustmentService:
                 if targets and mode in ("percent", "amount"):
                     rule = {"mode": mode, "targets": targets}
 
+                # Get notes from form
+                notes = form_data.get(f"notes_comp_{comp.id}_{pid}", "").strip() or None
+
                 # Validate rule
                 if rule:
                     name = next((p.name for p in participants if p.id == pid), str(pid))
@@ -181,7 +182,7 @@ class AdjustmentService:
                 if rule:
                     zero = True
 
-                self.comp_adjust_repo.upsert(bill.id, comp.id, pid, zero=zero, redis_rule=rule)
+                self.comp_adjust_repo.upsert(bill.id, comp.id, pid, zero=zero, redis_rule=rule, notes=notes)
                 if rule:
                     saved_rules += 1
 

@@ -149,9 +149,9 @@ class BillCalculator:
                 base_amount = base_map.get(zpid, 0.0)
                 to_distribute = base_amount
                 if mode == 'percent':
-                    allocated += self._allocate_percent(to_distribute, targets, remaining_ids, amounts)
+                    allocated += self._allocate_percent(to_distribute, targets, remaining_ids, amounts, source_pid=zpid)
                 elif mode == 'amount':
-                    allocated += self._allocate_amount(to_distribute, targets, remaining_ids, amounts)
+                    allocated += self._allocate_amount(to_distribute, targets, remaining_ids, amounts, source_pid=zpid)
 
         # Distribute leftover equally
         self._distribute_leftover(zeroed_total, allocated, remaining_ids, amounts)
@@ -176,7 +176,8 @@ class BillCalculator:
         to_distribute: float,
         targets: Dict,
         remaining_ids: List[int],
-        amounts: Dict[int, float]
+        amounts: Dict[int, float],
+        source_pid: int = None,
     ) -> float:
         allocated = 0.0
         try:
@@ -190,7 +191,8 @@ class BillCalculator:
                     pct_f = float(pct)
                 except (TypeError, ValueError):
                     continue
-                if tpid_i in remaining_ids:
+                # Allow allocation to any valid participant in the amounts dict
+                if tpid_i in amounts:
                     inc = to_distribute * (pct_f / total_pct)
                     amounts[tpid_i] += inc
                     allocated += inc
@@ -201,7 +203,8 @@ class BillCalculator:
         to_distribute: float,
         targets: Dict,
         remaining_ids: List[int],
-        amounts: Dict[int, float]
+        amounts: Dict[int, float],
+        source_pid: int = None,
     ) -> float:
         allocated = 0.0
         try:
@@ -216,7 +219,8 @@ class BillCalculator:
                     inc_val = float(val)
                 except (TypeError, ValueError):
                     continue
-                if tpid_i in remaining_ids:
+                # Allow allocation to any valid participant in the amounts dict
+                if tpid_i in amounts:
                     inc = inc_val * norm
                     amounts[tpid_i] += inc
                     allocated += inc

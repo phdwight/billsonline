@@ -98,3 +98,68 @@ def test_mixed_missing_targets_leftover_equal():
     assert round(amounts['Charlie'], 2) == 0.0
     assert sum(a.components["Electricity"]
                for a in contribs) == bill.electricity_amount
+
+
+def test_self_redistribution_percent():
+    """Test that a participant can redistribute part of their share back to themselves."""
+    p = make_participants(["Alice", "Bob", "Charlie"])
+    bill = MonthlyBill(year=2025, month=10, electricity_amount=0.0,
+                       water_amount=0.0, internet_amount=90.0)
+    readings = []
+    # Internet split equally: base 30 each
+    internet = BillComponent(month_id=1, name="Internet",
+                             amount=90.0, split_method='equal', position=1)
+    internet.id = 103
+    # Alice redistributes her 30: 50% to self (15), 30% to Bob (9), 20% to Charlie (6)
+    adj = ComponentAdjustment(
+        month_id=1, component_id=internet.id, participant_id=p[0].id, zero=True,
+        redis_rule={
+            'mode': 'percent',
+            'targets': {p[0].id: 50, p[1].id: 30, p[2].id: 20},  # Includes self
+        }
+    )
+    calc = BillCalculator()
+    contribs = calc.compute_contributions_dynamic(
+        bill, [internet], readings, p, [adj])
+
+    # Base: [30, 30, 30]
+    # Alice's 30 redistributed: 50% to self (15), 30% to Bob (9), 20% to Charlie (6)
+    # Final: Alice: 0 + 15 = 15, Bob: 30 + 9 = 39, Charlie: 30 + 6 = 36
+    amounts = {c.participant.name: c.components["Internet"] for c in contribs}
+    assert round(amounts['Alice'], 2) == 15.0
+    assert round(amounts['Bob'], 2) == 39.0
+    assert round(amounts['Charlie'], 2) == 36.0
+    # Totals preserved
+    assert sum(a.components["Internet"] for a in contribs) == bill.internet_amount
+
+
+def test_self_redistribution_amount():
+    """Test that a participant can redistribute specific amounts including to themselves."""
+    p = make_participants(["Alice", "Bob"])
+    bill = MonthlyBill(year=2025, month=10, electricity_amount=0.0,
+                       water_amount=100.0, internet_amount=0.0)
+    readings = []
+    # Water split equally: base 50 each
+    water = BillComponent(month_id=1, name="Water",
+                          amount=100.0, split_method='equal', position=1)
+    water.id = 104
+    # Alice redistributes her 50: 20 to self, 30 to Bob
+    adj = ComponentAdjustment(
+        month_id=1, component_id=water.id, participant_id=p[0].id, zero=True,
+        redis_rule={
+            'mode': 'amount',
+            'targets': {p[0].id: 20, p[1].id: 30},  # Includes self
+        }
+    )
+    calc = BillCalculator()
+    contribs = calc.compute_contributions_dynamic(
+        bill, [water], readings, p, [adj])
+
+    # Base: [50, 50]
+    # Alice's 50 redistributed: 20 to self, 30 to Bob
+    # Final: Alice: 0 + 20 = 20, Bob: 50 + 30 = 80
+    amounts = {c.participant.name: c.components["Water"] for c in contribs}
+    assert round(amounts['Alice'], 2) == 20.0
+    assert round(amounts['Bob'], 2) == 80.0
+    # Totals preserved
+    assert sum(a.components["Water"] for a in contribs) == bill.water_amount

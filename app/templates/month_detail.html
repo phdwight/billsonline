@@ -4,7 +4,7 @@
 {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
 <div class="card-header">
   <h2 class="section-title">📅 {{ month_names[bill.month-1] }} {{ bill.year }} {% if bill.archived %}<span class="badge-archived">🔒 Archived</span>{% endif %}</h2>
-  <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+  <a href="{{ url_for('admin.admin') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
 </div>
 
 <div class="month-detail-actions">
@@ -161,7 +161,7 @@
     {% endif %}
 
     {% if components %}
-    <table class="adj-table">
+    <table class="adj-table components-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -178,29 +178,51 @@
           <td>₱ {{ '%.2f'|format(comp.amount|float) }}</td>
           <td>{{ 'By usage' if comp.split_method == 'usage' else 'Equal' }}</td>
           <td>{{ comp.position }}</td>
-          <td style="white-space:nowrap;">
+          <td>
             {% if not bill.archived %}
-            <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" style="display:inline-flex; gap:.25rem; align-items:center;">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="text" name="name" placeholder="Rename" style="width:9rem;">
-              <input type="number" name="amount" step="0.01" min="0" placeholder="Amount" style="width:7rem;">
-              <select name="split_method">
-                <option value="">—</option>
-                <option value="equal">Equal</option>
-                <option value="usage">By usage</option>
-              </select>
-              <input type="number" name="position" step="1" placeholder="#" style="width:4rem;">
-              <button class="btn btn-secondary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Update</button>
-            </form>
-            <form method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-secondary" type="submit" onclick="return confirm('Delete component {{ comp.name }}?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
-            </form>
+            <div class="component-actions">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="toggleComponentEdit(this)"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</button>
+              <form method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-secondary btn-sm" type="submit" onclick="return confirm('Delete component {{ comp.name }}?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
+              </form>
+            </div>
             {% else %}
               <span class="muted"><small>Locked</small></span>
             {% endif %}
           </td>
         </tr>
+        {% if not bill.archived %}
+        <tr class="component-edit-row" style="display:none;">
+          <td colspan="5">
+            <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" class="component-edit-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="row">
+                <label><small>Name</small>
+                  <input type="text" name="name" placeholder="{{ comp.name }}">
+                </label>
+                <label><small>Amount</small>
+                  <input type="number" name="amount" step="0.01" min="0" placeholder="{{ '%.2f'|format(comp.amount|float) }}">
+                </label>
+                <label><small>Split</small>
+                  <select name="split_method">
+                    <option value="">— Keep —</option>
+                    <option value="equal" {% if comp.split_method == 'equal' %}selected{% endif %}>Equal</option>
+                    <option value="usage" {% if comp.split_method == 'usage' %}selected{% endif %}>By usage</option>
+                  </select>
+                </label>
+                <label><small>Position</small>
+                  <input type="number" name="position" step="1" placeholder="{{ comp.position }}">
+                </label>
+              </div>
+              <div class="component-edit-actions">
+                <button class="btn btn-primary btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Update</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleComponentEdit(this)">Cancel</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>
@@ -226,7 +248,6 @@
     <table>
       <thead>
         <tr>
-          <th>Component</th>
           <th>Participant</th>
           <th>Mode</th>
           <th>Targets</th>
@@ -235,14 +256,13 @@
       <tbody>
       {% for comp in components %}
         <tr>
-          <td colspan="4" class="muted"><small><strong>{{ comp.name }}</strong> — {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</small></td>
+          <th colspan="3" class="group-header"><strong>{{ comp.name }}</strong> <span class="muted">— {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</span></th>
         </tr>
         {% for p in participants %}
           {% if p.id in member_ids %}
           {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
           {% set rule = adj.get('rule') or {} %}
           <tr>
-            <td>{{ comp.name }}</td>
             <td>{{ p.name }}</td>
             <td>{{ (rule.get('mode')|capitalize) if rule.get('mode') else 'None' }}</td>
             <td>
@@ -280,7 +300,6 @@
     <table>
       <thead>
         <tr>
-          <th>Component</th>
           <th>Participant</th>
           <th>Redistribution <button type="button" class="linklike comp-adj-toggle-all" data-comp="*" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
         </tr>
@@ -288,18 +307,26 @@
       <tbody>
       {% for comp in components %}
         <tr>
-          <td colspan="4" class="muted"><small><strong>{{ comp.name }}</strong> — {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</small> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></td>
+          <th colspan="2" class="group-header"><strong>{{ comp.name }}</strong> <span class="muted">— {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</span> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></th>
         </tr>
         {% for p in participants %}
           {% if p.id in member_ids %}
           <tr>
-            <td>{{ comp.name }}</td>
             <td>{{ p.name }}</td>
             <td>
               {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
+              {% set rule = adj.get('rule') or {} %}
+              {% set all_participants = [] %}
+              {% for t in participants %}
+                {% if t.id in member_ids %}
+                  {% set _ = all_participants.append(t.name) %}
+                {% endif %}
+              {% endfor %}
+              <div class="redis-summary-inline">
+                <span class="muted"><small>To: {{ all_participants|join(', ') if all_participants else '—' }}</small></span>
+              </div>
               <div class="comp-redis-box" data-panel="comp-{{ comp.id }}-{{ p.id }}" style="display:none;">
                 <div style="display:flex; gap:.25rem; align-items:center; flex-wrap:wrap; margin-bottom:.25rem;">
-                {% set rule = adj.get('rule') or {} %}
                 <select name="mode_comp_{{ comp.id }}_{{ p.id }}" id="mode_comp_{{ comp.id }}_{{ p.id }}">
                   <option value="" {% if not rule.get('mode') %}selected{% endif %}>— None —</option>
                   <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
@@ -307,14 +334,20 @@
                 </select>
                 <span class="muted" data-redis-summary="comp-{{ comp.id }}-{{ p.id }}"><small></small></span>
                 </div>
-                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto; gap:.25rem .5rem; margin-left:.5rem;">
+                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto auto; gap:.25rem .5rem; margin-left:.5rem;">
                   {% for t in participants %}
-                    {% if t.id in member_ids and t.id != p.id %}
-                      <label><small>{{ t.name }}</small></label>
+                    {% if t.id in member_ids %}
+                      <label><small>{{ t.name }}{% if t.id == p.id %} (self){% endif %}</small></label>
                       {% set targets = rule.get('targets') or {} %}
                       <input type="number" step="0.01" min="0" name="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" id="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:6rem;">
+                      <span class="redis-computed muted" data-computed="comp-{{ comp.id }}-{{ p.id }}-{{ t.id }}"><small></small></span>
                     {% endif %}
                   {% endfor %}
+                </div>
+                <div style="margin-top:.5rem; margin-left:.5rem;">
+                  <label><small class="muted">Notes:</small>
+                    <input type="text" name="notes_comp_{{ comp.id }}_{{ p.id }}" value="{{ adj.get('notes') or '' }}" placeholder="Optional description..." maxlength="255" style="width:100%; max-width:20rem;">
+                  </label>
                 </div>
               </div>
             </td>
@@ -372,6 +405,10 @@
     <div class="muted"><small>No components yet. Add components above to see contributions.</small></div>
   {% endif %}
 </section>
+
+<div class="page-bottom-actions">
+  <a href="{{ url_for('admin.admin') }}" class="btn btn-secondary"><svg class="icon icon-left"><use href="#icon-back"/></svg>Discard & Go Back</a>
+</div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -382,6 +419,18 @@ initMonthDetail(
   {{ (components or [])|map(attribute="id")|list|tojson|safe }},
   {{ (dynamic_base_maps or {})|tojson|safe }}
 );
+
+// Toggle component edit row
+function toggleComponentEdit(btn) {
+  const row = btn.closest('tr');
+  const editRow = row.classList.contains('component-edit-row') 
+    ? row 
+    : row.nextElementSibling;
+  if (editRow && editRow.classList.contains('component-edit-row')) {
+    const isHidden = editRow.style.display === 'none';
+    editRow.style.display = isHidden ? 'table-row' : 'none';
+  }
+}
 
 // More actions dropdown toggle
 function toggleMoreActions(btn) {

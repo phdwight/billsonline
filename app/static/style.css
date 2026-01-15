@@ -129,6 +129,12 @@
 	gap: 0.5rem;
 }
 
+/* Centered card header variant for standalone section titles */
+.card-header.centered {
+	justify-content: center;
+	text-align: center;
+}
+
 .card-header .section-title {
 	margin-bottom: 0;
 }
@@ -675,4 +681,61 @@
 		width: 100%;
 		justify-content: center;
 	}
+}
+
+/* ============================================
+   COMPONENT TABLE STYLES
+   ============================================ */
+
+.component-actions {
+	display: flex;
+	gap: 0.25rem;
+	align-items: center;
+}
+
+.component-edit-row {
+	background: var(--input-bg);
+}
+
+.component-edit-row td {
+	padding: 0.75rem;
+}
+
+.component-edit-form .row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-bottom: 0.5rem;
+}
+
+.component-edit-form .row label {
+	flex: 1;
+	min-width: 100px;
+}
+
+.component-edit-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+/* Redistribution summary shown before details */
+.redis-summary-inline {
+	margin-bottom: 0.25rem;
+}
+
+/* Computed amount next to redistribution input */
+.redis-computed {
+	min-width: 5rem;
+	font-style: italic;
+}
+
+/* Page bottom actions */
+.page-bottom-actions {
+	display: flex;
+	justify-content: center;
+	gap: 1rem;
+	margin-top: var(--gap);
+	padding-top: var(--gap);
+	border-top: 1px solid var(--border);
 }
