@@ -36,21 +36,53 @@ function recomputeDynamicPanel(compId, pid, baseMap) {
   
   const mode = modeSel.value;
   const summary = document.querySelector(`[data-redis-summary='comp-${compId}-${pid}'] small`);
+  const base = parseFloat(baseMap[String(pid)] || baseMap[pid] || 0);
   
   let sum = 0;
   const inputs = document.querySelectorAll(`input[id^=redis_comp_${compId}_${pid}_]`);
+  const values = [];
   inputs.forEach(inp => {
     const v = parseFloat(inp.value);
+    values.push(isNaN(v) ? 0 : v);
     if (!isNaN(v)) sum += v;
   });
   
+  // Update computed amounts next to each input
+  let idx = 0;
+  inputs.forEach(inp => {
+    const targetId = inp.id.split('_').pop();
+    const computedSpan = document.querySelector(`[data-computed='comp-${compId}-${pid}-${targetId}'] small`);
+    if (computedSpan) {
+      const v = values[idx];
+      if (mode === 'percent' && v > 0) {
+        // Show computed amount for percentage
+        const computed = (v / 100) * base;
+        computedSpan.textContent = `= ₱${fmt(computed)}`;
+      } else {
+        computedSpan.textContent = '';
+      }
+    }
+    idx++;
+  });
+  
   if (mode === 'percent') {
-    summary.textContent = `Sum: ${fmt(sum)}% (needs 100%)`;
-    summary.style.color = Math.abs(sum - 100) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
+    const diff = 100 - sum;
+    if (Math.abs(diff) < 0.01) {
+      summary.textContent = `Sum: ${fmt(sum)}% ✓`;
+      summary.style.color = 'var(--success-color, #2e7d32)';
+    } else {
+      summary.textContent = `Sum: ${fmt(sum)}% (needs ${fmt(diff)}% more)`;
+      summary.style.color = 'var(--error-color, #b00020)';
+    }
   } else if (mode === 'amount') {
-    const base = parseFloat(baseMap[String(pid)] || baseMap[pid] || 0);
-    summary.textContent = `Sum: ₱${fmt(sum)} (needs ₱${fmt(base)})`;
-    summary.style.color = Math.abs(sum - base) < 0.01 ? 'var(--muted-color, #666)' : 'var(--error-color, #b00020)';
+    const diff = base - sum;
+    if (Math.abs(diff) < 0.01) {
+      summary.textContent = `Sum: ₱${fmt(sum)} ✓`;
+      summary.style.color = 'var(--success-color, #2e7d32)';
+    } else {
+      summary.textContent = `Sum: ₱${fmt(sum)} (needs ₱${fmt(diff)} more)`;
+      summary.style.color = 'var(--error-color, #b00020)';
+    }
   } else {
     const anyVal = Array.from(inputs).some(inp => {
       const v = parseFloat(inp.value);

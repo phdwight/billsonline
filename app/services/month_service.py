@@ -89,6 +89,7 @@ class MonthService:
                 comp_adjustments_map.setdefault(a.component_id, {})[a.participant_id] = {
                     'zero': bool(a.zero),
                     'rule': a.redis_rule or None,
+                    'notes': a.notes or None,
                 }
 
             usage_by_pid = {r.participant_id: r.usage() for r in readings}

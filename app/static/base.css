@@ -239,6 +239,17 @@ tbody tr:hover {
 	transform: scale(1.005);
 }
 
+/* Group header rows in tables - used for sectioning within a table */
+.group-header {
+	background: var(--table-row-even);
+	padding: .5rem .6rem;
+	text-align: left;
+	font-size: 0.9rem;
+}
+.group-header .muted {
+	font-weight: normal;
+}
+
 /* Responsive: collapse redistribution columns under 1000px */
 @media (max-width: 1000px) {
 	.adj-table th:nth-child(3), .adj-table td:nth-child(3),
@@ -510,7 +521,7 @@ body.compact .btn-sm { padding: .25rem .45rem; font-size: .8rem; }
 }
 
 /* Quick links bar enhancement */
-section.card[style*="margin-top"] {
+section.card.quick-links {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -518,11 +529,11 @@ section.card[style*="margin-top"] {
 	background: linear-gradient(135deg, var(--card) 0%, rgba(27,156,133,0.05) 100%);
 }
 
-section.card[style*="margin-top"] .btn-secondary {
+section.card.quick-links .btn-secondary {
 	transition: all 0.2s ease;
 }
 
-section.card[style*="margin-top"] .btn-secondary:hover {
+section.card.quick-links .btn-secondary:hover {
 	background: var(--primary);
 	color: var(--primary-contrast);
 	border-color: var(--primary);
@@ -649,7 +660,7 @@ ul li a {
 /* Ensure card has position for pseudo-element */
 .card {
 	position: relative;
-	overflow: hidden;
+	overflow: visible;
 }
 
 /* Reduced motion preference */

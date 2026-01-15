@@ -235,7 +235,8 @@ class ComponentAdjustmentRepository:
         component_id: int,
         participant_id: int,
         zero: bool,
-        redis_rule=None
+        redis_rule=None,
+        notes: str = None
     ) -> ComponentAdjustment:
         adj = ComponentAdjustment.query.filter_by(
             month_id=month_id, component_id=component_id, participant_id=participant_id
@@ -250,6 +251,8 @@ class ComponentAdjustmentRepository:
         adj.zero = bool(zero)
         # Always set redis_rule; allow clearing by passing None
         adj.redis_rule = redis_rule
+        # Set notes (can be None or empty string to clear)
+        adj.notes = notes.strip() if notes else None
         db.session.commit()
         return adj
 

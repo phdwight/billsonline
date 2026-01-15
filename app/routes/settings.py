@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sqlite3
 from datetime import datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
@@ -66,7 +67,30 @@ def database_upload():
 
     try:
         file.save(db_path)
-        flash("Database replaced successfully! Please refresh the page.", "success")
+        
+        # Always apply schema updates directly to the uploaded database
+        # Flask-Migrate doesn't work reliably here due to connection pooling
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            # Check if component_adjustments table exists and has notes column
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='component_adjustments'")
+            if cursor.fetchone():
+                # Table exists, check for notes column
+                cursor.execute("PRAGMA table_info(component_adjustments)")
+                columns = [row[1] for row in cursor.fetchall()]
+                if 'notes' not in columns:
+                    cursor.execute("ALTER TABLE component_adjustments ADD COLUMN notes VARCHAR(255)")
+                    conn.commit()
+                    flash("Database replaced and schema updated successfully!", "success")
+                else:
+                    flash("Database replaced successfully!", "success")
+            else:
+                # Table doesn't exist yet, schema will be created when app uses it
+                flash("Database replaced successfully!", "success")
+            conn.close()
+        except Exception as sql_err:
+            flash(f"Database replaced but schema update failed: {str(sql_err)}. Some features may not work.", "warning")
     except Exception as e:
         flash(f"Error replacing database: {str(e)}", "error")
 

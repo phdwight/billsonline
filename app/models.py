@@ -98,6 +98,8 @@ class ComponentAdjustment(db.Model):
     # Optional redistribution rule per component
     # {"mode": "percent"|"amount", "targets": {participant_id: value, ...}}
     redis_rule = db.Column(db.JSON, nullable=True)
+    # Optional notes/description for this adjustment
+    notes = db.Column(db.String(255), nullable=True)
 
     month = db.relationship("MonthlyBill")
     component = db.relationship("BillComponent")
