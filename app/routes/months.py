@@ -263,6 +263,7 @@ def edit(bill_id: int):
 def update(bill_id: int):
     """POST /months/<id> - Update a month (PUT emulation via POST)."""
     bill_repo = _get_bill_repo()
+    component_repo = _get_component_repo()
     bill = bill_repo.get_by_id(bill_id)
     if not bill:
         flash("Month not found", "error")
@@ -274,12 +275,31 @@ def update(bill_id: int):
     if not form.validate_on_submit():
         flash("Please correct the errors in the form", "error")
         return redirect(url_for("months.edit", bill_id=bill_id))
+
+    electricity_amount = float(form.electricity_amount.data)
+    water_amount = float(form.water_amount.data)
+    internet_amount = float(form.internet_amount.data)
+
+    # Update the MonthlyBill amounts
     bill_repo.update_amounts(
         bill_id,
-        float(form.electricity_amount.data),
-        float(form.water_amount.data),
-        float(form.internet_amount.data)
+        electricity_amount,
+        water_amount,
+        internet_amount
     )
+
+    # Also update corresponding BillComponent records if they exist
+    # This ensures the computation reflects the updated amounts
+    components = component_repo.list_for_month(bill_id)
+    legacy_updates = {
+        "Electricity": electricity_amount,
+        "Water": water_amount,
+        "Internet": internet_amount,
+    }
+    for comp in components:
+        if comp.name in legacy_updates:
+            component_repo.update(comp.id, amount=legacy_updates[comp.name])
+
     flash("Month updated", "info")
     return redirect(url_for("months.show", bill_id=bill_id))
 

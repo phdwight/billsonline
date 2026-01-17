@@ -54,6 +54,8 @@ class MockReading:
     prev_reading: int
 
     def usage(self) -> int:
+        if self.prev_reading is None:
+            return 0
         return max(0, self.reading - self.prev_reading)
 
 
@@ -70,7 +72,7 @@ class MockAdjustment:
     value: float
     participant_id: int = 0  # alias for from_participant_id for calculator compatibility
     zero: bool = False
-    redis_rule: Optional[str] = None
+    redis_rule: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -420,6 +422,36 @@ def mock_component_repo(context):
 
 
 @pytest.fixture
+def mock_month_part_repo(context):
+    """Mock MonthParticipantRepository."""
+    repo = Mock()
+
+    def add(month_id, participant_id):
+        key = (month_id, participant_id)
+        if not hasattr(context, 'month_participants'):
+            context.month_participants = {}
+        context.month_participants[key] = {'month_id': month_id, 'participant_id': participant_id}
+        return context.month_participants[key]
+
+    def list_for_month(month_id):
+        if not hasattr(context, 'month_participants'):
+            return []
+        return [v for k, v in context.month_participants.items() if k[0] == month_id]
+
+    def remove(month_id, participant_id):
+        if hasattr(context, 'month_participants'):
+            key = (month_id, participant_id)
+            if key in context.month_participants:
+                del context.month_participants[key]
+
+    repo.add = Mock(side_effect=add)
+    repo.list_for_month = Mock(side_effect=list_for_month)
+    repo.remove = Mock(side_effect=remove)
+
+    return repo
+
+
+@pytest.fixture
 def mock_reading_repo(context):
     """Mock MeterReadingRepository."""
     repo = Mock()
@@ -431,14 +463,18 @@ def mock_reading_repo(context):
             reading=reading,
             prev_reading=prev_reading
         )
-        context.readings[participant_id] = reading_obj
+        context.readings[(month_id, participant_id)] = reading_obj
         return reading_obj
 
     def list_for_month(month_id):
-        return list(context.readings.values())
+        return [r for r in context.readings.values() if r.month_id == month_id]
+
+    def get(month_id, participant_id):
+        return context.readings.get((month_id, participant_id))
 
     repo.upsert = Mock(side_effect=upsert)
     repo.list_for_month = Mock(side_effect=list_for_month)
+    repo.get = Mock(side_effect=get)
 
     return repo
 
@@ -447,6 +483,32 @@ def mock_reading_repo(context):
 def mock_adjustment_repo(context):
     """Mock ComponentAdjustmentRepository."""
     repo = Mock()
+
+    def upsert(month_id, component_id, participant_id, zero=False, redis_rule=None, notes=None):
+        """Upsert an adjustment for a component/participant."""
+        # Find component name from id
+        comp_name = None
+        for name, comp in context.components.items():
+            if comp.id == component_id:
+                comp_name = name
+                break
+
+        adj = MockAdjustment(
+            id=context.get_next_id(),
+            month_id=month_id,
+            component_id=component_id,
+            component_name=comp_name or "",
+            from_participant_id=participant_id,
+            to_participant_id=None,
+            mode=redis_rule.get('mode') if redis_rule else None,
+            value=0,
+            participant_id=participant_id,
+            zero=zero,
+            redis_rule=redis_rule
+        )
+        key = (month_id, component_id, participant_id)
+        context.adjustments[key] = adj
+        return adj
 
     def add(month_id, component_name, from_participant_id, to_participant_id, mode, value):
         # Find component id from name
@@ -473,14 +535,21 @@ def mock_adjustment_repo(context):
     def list_for_month(month_id):
         return list(context.adjustments.values())
 
+    def get(month_id, component_id, participant_id):
+        """Get adjustment by month/component/participant."""
+        key = (month_id, component_id, participant_id)
+        return context.adjustments.get(key)
+
     def delete(adj_id):
         for key, adj in list(context.adjustments.items()):
             if adj.id == adj_id:
                 del context.adjustments[key]
                 return
 
+    repo.upsert = Mock(side_effect=upsert)
     repo.add = Mock(side_effect=add)
     repo.list_for_month = Mock(side_effect=list_for_month)
+    repo.get = Mock(side_effect=get)
     repo.delete = Mock(side_effect=delete)
 
     return repo
@@ -545,4 +614,32 @@ def component_exists_with_split(context, mock_component_repo, name, amount, spli
     """Create a component with specified split method."""
     bill = next(iter(context.bills.values()), None)
     if bill:
-        mock_component_repo.add(bill.id, name, amount, split_method)
+        comp = mock_component_repo.add(bill.id, name, amount, split_method)
+        if not hasattr(context, 'component_ids'):
+            context.component_ids = {}
+        context.component_ids[name] = comp.id
+
+
+def _datatable_to_dicts(datatable):
+    """Convert pytest-bdd datatable (list of lists) to list of dicts."""
+    if not datatable or len(datatable) < 2:
+        return []
+    headers = datatable[0]
+    return [dict(zip(headers, row)) for row in datatable[1:]]
+
+
+@given("the bill has legacy components:")
+def bill_has_legacy_components_conftest(context, mock_component_repo, datatable):
+    """Add legacy components to the bill from datatable."""
+    rows = _datatable_to_dicts(datatable)
+    bill = next(iter(context.bills.values()), None)
+    if not bill:
+        return
+    for i, row in enumerate(rows):
+        name = row.get('name', '')
+        amount = float(row.get('amount', 0))
+        split_method = row.get('split_method', 'equal')
+        comp = mock_component_repo.add(bill.id, name, amount, split_method, i)
+        if not hasattr(context, 'component_ids'):
+            context.component_ids = {}
+        context.component_ids[name] = comp.id

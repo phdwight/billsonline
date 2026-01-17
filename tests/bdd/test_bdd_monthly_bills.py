@@ -23,6 +23,33 @@ def bill_with_components(context, mock_bill_repo, mock_component_repo):
     mock_component_repo.add(bill.id, "Internet", 300.0, "equal", 2)
 
 
+@given("a bill for January 2025 exists with:")
+def bill_with_amounts_table(context, mock_bill_repo, datatable):
+    """Create a bill with amounts from datatable."""
+    rows = datatable_to_dicts(datatable)
+    if not rows:
+        return
+    row = rows[0]
+    electricity = float(row.get('electricity', 0))
+    water = float(row.get('water', 0))
+    internet = float(row.get('internet', 0))
+    mock_bill_repo.create(2025, 1, electricity, water, internet)
+
+
+@given("the bill has legacy components:")
+def bill_has_legacy_components(context, mock_component_repo, datatable):
+    """Add legacy components to the bill from datatable."""
+    rows = datatable_to_dicts(datatable)
+    bill = next(iter(context.bills.values()), None)
+    if not bill:
+        return
+    for i, row in enumerate(rows):
+        name = row.get('name', '')
+        amount = float(row.get('amount', 0))
+        split_method = row.get('split_method', 'equal')
+        mock_component_repo.add(bill.id, name, amount, split_method, i)
+
+
 @given("meter readings are recorded for all participants")
 def readings_for_all(context, mock_reading_repo):
     """Record meter readings for all participants."""
@@ -60,6 +87,33 @@ def update_bill_electricity(context, mock_bill_repo, amount):
     bill = next(iter(context.bills.values()), None)
     if bill:
         mock_bill_repo.update_amounts(bill.id, amount, bill.water_amount, bill.internet_amount)
+
+
+@when("I update the bill amounts to:")
+def update_bill_amounts_with_table(context, mock_bill_repo, mock_component_repo, datatable):
+    """Update bill amounts from datatable - also updates corresponding components."""
+    rows = datatable_to_dicts(datatable)
+    if not rows:
+        return
+    row = rows[0]
+    electricity = float(row.get('electricity', 0))
+    water = float(row.get('water', 0))
+    internet = float(row.get('internet', 0))
+
+    bill = next(iter(context.bills.values()), None)
+    if bill:
+        mock_bill_repo.update_amounts(bill.id, electricity, water, internet)
+
+        # Also update corresponding BillComponent records (mimics the fix)
+        components = mock_component_repo.list_for_month(bill.id)
+        legacy_updates = {
+            "Electricity": electricity,
+            "Water": water,
+            "Internet": internet,
+        }
+        for comp in components:
+            if comp.name in legacy_updates:
+                mock_component_repo.update(comp.id, amount=legacy_updates[comp.name])
 
 
 @when("I archive the bill for January 2025")
@@ -154,6 +208,36 @@ def bill_electricity_amount(context, amount):
     assert bill is not None
     assert abs(bill.electricity_amount - amount) < 0.01, \
         f"Expected electricity {amount}, got {bill.electricity_amount}"
+
+
+@then(parsers.parse("the bill water amount should be {amount:f}"))
+def bill_water_amount(context, amount):
+    """Verify bill water amount."""
+    bill = next(iter(context.bills.values()), None)
+    assert bill is not None
+    assert abs(bill.water_amount - amount) < 0.01, \
+        f"Expected water {amount}, got {bill.water_amount}"
+
+
+@then(parsers.parse("the bill internet amount should be {amount:f}"))
+def bill_internet_amount(context, amount):
+    """Verify bill internet amount."""
+    bill = next(iter(context.bills.values()), None)
+    assert bill is not None
+    assert abs(bill.internet_amount - amount) < 0.01, \
+        f"Expected internet {amount}, got {bill.internet_amount}"
+
+
+@then(parsers.parse('the "{component_name}" component amount should be {amount:f}'))
+def component_amount_should_be(context, mock_component_repo, component_name, amount):
+    """Verify component amount was updated."""
+    bill = next(iter(context.bills.values()), None)
+    assert bill is not None
+    components = mock_component_repo.list_for_month(bill.id)
+    comp = next((c for c in components if c.name == component_name), None)
+    assert comp is not None, f"Component '{component_name}' not found"
+    assert abs(comp.amount - amount) < 0.01, \
+        f"Expected {component_name} amount {amount}, got {comp.amount}"
 
 
 @then("the bill should be marked as archived")

@@ -1,7 +1,8 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/tests-188%20passing-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-270%20passing-brightgreen)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -233,7 +234,7 @@ To manage (edit or delete) participants:
 
 ## Tests
 
-The project includes comprehensive test coverage with **188 tests** across unit tests, BDD tests, and UI tests.
+The project includes comprehensive test coverage with **270 tests** (86% code coverage) using **BDD-style Gherkin** feature files across all test categories.
 
 ### Run All Tests
 
@@ -250,35 +251,29 @@ pytest --cov=app --cov-report=term-missing tests/
 
 ### Test Categories
 
-#### Unit Tests (160 tests)
+#### BDD Tests (251 tests)
 
-Located in `tests/`:
-- `test_calculator.py` - Bill calculation logic (splitting, redistribution)
-- `test_models.py` - SQLAlchemy models and relationships
-- `test_repositories.py` - Data access layer (CRUD operations)
-- `test_routes.py` - Flask route handlers
-- `test_routes_complex.py` - Complex multi-step scenarios
-- `test_forms.py` - WTForms validation rules
-- `test_adjustments.py` - Zero-out and redistribution logic
-- `test_dynamic_components.py` - Dynamic component features
-- `test_dynamic_services_extra.py` - Service layer edge cases
-- `test_custom_redistribution.py` - Custom redistribution rules
-- `test_custom_redistribution_edges.py` - Edge cases for redistribution
-- `test_month_participant_selection.py` - Participant selection during month creation
-- `test_database_restore.py` - Database restore and auto-migration
-- `test_version.py` - Version utility tests
-
-#### BDD Tests (28 tests)
+All tests use **pytest-bdd** with Gherkin feature files for readable, behavior-driven specifications.
 
 Located in `tests/bdd/` with Gherkin feature files in `tests/features/`:
 
 | Feature File | Scenarios | Description |
 |--------------|-----------|-------------|
+| `calculator.feature` | 23 | Bill calculation logic (splitting, redistribution) |
+| `models.feature` | 10 | SQLAlchemy models and relationships |
+| `repositories.feature` | 31 | Data access layer (CRUD operations) |
+| `routes.feature` | 47 | Flask route handlers |
+| `routes_complex.feature` | 26 | Complex multi-step route scenarios |
+| `forms.feature` | 7 | WTForms validation rules |
+| `version.feature` | 5 | Version utility tests |
+| `adjustment_service.feature` | 19 | Adjustment service business logic |
+| `month_service.feature` | 18 | Month service operations |
+| `extended_routes.feature` | 24 | Extended route coverage |
 | `participants.feature` | 5 | Participant management |
-| `monthly_bills.feature` | 6 | Bill CRUD operations |
+| `monthly_bills.feature` | 7 | Bill CRUD operations |
 | `bill_components.feature` | 6 | Component splitting methods |
 | `adjustments.feature` | 6 | Cost redistribution |
-| `meter_readings.feature` | 5 | Usage tracking |
+| `meter_readings.feature` | 5 | Meter reading tracking |
 
 **Example BDD Scenario:**
 
@@ -288,19 +283,27 @@ Scenario: Add an equally split component
   And a bill for January 2025 exists
   When I add a component "Water" with amount 300.00 split "equal"
   Then each participant should pay 100.00 for "Water"
+
+Scenario Outline: Validate redistribution rules
+  Given a component "<component>" with amount <amount>
+  When I validate a <mode> rule with targets summing to <sum>
+  Then the validation should <result>
+
+  Examples:
+    | component   | amount | mode    | sum   | result |
+    | Electricity | 100.0  | percent | 100.0 | pass   |
+    | Water       | 150.0  | percent | 90.0  | fail   |
+    | Internet    | 100.0  | amount  | 50.0  | pass   |
 ```
 
 ### Run Specific Test Categories
 
 ```bash
-# Run only unit tests
-pytest tests/ --ignore=tests/bdd/ --ignore=tests/ui/
-
-# Run only BDD tests
+# Run all BDD tests
 pytest tests/bdd/
 
-# Run specific test file
-pytest tests/test_calculator.py -v
+# Run specific feature file tests
+pytest tests/bdd/test_bdd_calculator.py -v
 
 # Run tests matching a pattern
 pytest -k "adjustment" -v
@@ -401,11 +404,11 @@ billsonline/
 │   ├── templates/           # Jinja2 templates
 │   └── static/              # CSS, JS, themes
 ├── tests/
-│   ├── test_*.py            # Unit tests (144)
-│   ├── bdd/                 # BDD step definitions
+│   ├── bdd/                 # BDD step definitions (251 tests)
 │   │   ├── conftest.py      # Fixtures and mocks
-│   │   └── test_bdd_*.py    # Step implementations
-│   └── features/            # Gherkin feature files (5 features)
+│   │   └── test_bdd_*.py    # Step implementations (15 files)
+│   ├── features/            # Gherkin feature files (15 features)
+│   └── ui/                  # Playwright UI tests (19 tests)
 ├── migrations/              # Alembic database migrations
 ├── docs/                    # Documentation assets
 ├── main.py                  # ASGI entrypoint

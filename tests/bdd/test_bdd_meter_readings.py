@@ -59,8 +59,9 @@ def record_readings(context, mock_reading_repo, datatable):
             actual_current = max(current, previous)
             mock_reading_repo.upsert(bill.id, p.id, actual_current, previous)
             # Force recalc usage with clamping
-            reading = context.readings[p.id]
-            reading.usage = lambda r=reading: max(0, r.reading - r.prev_reading)
+            reading = context.readings.get((bill.id, p.id))
+            if reading:
+                reading.usage = lambda r=reading: max(0, r.reading - r.prev_reading)
 
 
 @when(parsers.parse("I update {name}'s current reading to {reading:d}"))
@@ -69,7 +70,7 @@ def update_reading(context, mock_reading_repo, name, reading):
     p = context.participants.get(name)
     bill = next(iter(context.bills.values()), None)
     if p and bill:
-        existing = context.readings.get(p.id)
+        existing = context.readings.get((bill.id, p.id))
         prev = existing.prev_reading if existing else 0
         mock_reading_repo.upsert(bill.id, p.id, reading, prev)
 
@@ -87,8 +88,9 @@ def view_january_bill(context, mock_bill_repo):
 def participant_usage(context, name, usage):
     """Verify calculated usage for participant."""
     p = context.participants.get(name)
-    if p:
-        reading = context.readings.get(p.id)
+    bill = next(iter(context.bills.values()), None)
+    if p and bill:
+        reading = context.readings.get((bill.id, p.id))
         assert reading is not None, f"No reading found for {name}"
         actual_usage = max(0, reading.reading - reading.prev_reading)
         assert actual_usage == usage, \
