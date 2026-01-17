@@ -6,6 +6,7 @@ from .months import bp as months_bp
 from .components import bp as components_bp
 from .adjustments import bp as adjustments_bp
 from .settings import bp as settings_bp
+from .reports import bp as reports_bp
 
 
 def register_blueprints(app):
@@ -17,3 +18,4 @@ def register_blueprints(app):
     app.register_blueprint(components_bp)
     app.register_blueprint(adjustments_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(reports_bp)

@@ -739,3 +739,130 @@
 	padding-top: var(--gap);
 	border-top: 1px solid var(--border);
 }
+
+/* ============================================
+   REPORTS PAGE STYLES
+   ============================================ */
+
+.report-form {
+	margin-bottom: 1.5rem;
+}
+
+.report-form .form-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: flex-end;
+}
+
+.report-form .form-group {
+	flex: 1;
+	min-width: 200px;
+}
+
+.report-form .form-group label {
+	display: block;
+	margin-bottom: 0.5rem;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.report-form .form-group select {
+	width: 100%;
+	padding: 0.6rem 0.8rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	font-size: 1rem;
+}
+
+.report-form .form-actions {
+	flex: 0 0 auto;
+	min-width: auto;
+}
+
+.chart-section {
+	margin-top: 1.5rem;
+}
+
+.chart-container {
+	position: relative;
+	height: 400px;
+	width: 100%;
+	margin-bottom: 1.5rem;
+}
+
+.chart-summary {
+	margin-top: 1.5rem;
+}
+
+.chart-summary h3 {
+	margin-bottom: 1rem;
+	color: var(--text);
+}
+
+.summary-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.summary-table th,
+.summary-table td {
+	padding: 0.75rem;
+	text-align: left;
+	border-bottom: 1px solid var(--border);
+}
+
+.summary-table th {
+	background: var(--surface-alt, var(--surface));
+	font-weight: 600;
+	color: var(--text);
+}
+
+.summary-table tbody tr:hover {
+	background: var(--surface-alt, rgba(0,0,0,0.02));
+}
+
+.summary-table tfoot td {
+	border-top: 2px solid var(--border);
+	background: var(--surface-alt, var(--surface));
+}
+
+.color-dot {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	margin-right: 0.5rem;
+	vertical-align: middle;
+}
+
+.help-text {
+	color: var(--text-muted, #666);
+	font-size: 0.9rem;
+	margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+	.report-form .form-row {
+		flex-direction: column;
+	}
+	
+	.report-form .form-group {
+		min-width: 100%;
+	}
+	
+	.chart-container {
+		height: 300px;
+	}
+	
+	.summary-table {
+		font-size: 0.85rem;
+	}
+	
+	.summary-table th,
+	.summary-table td {
+		padding: 0.5rem;
+	}
+}

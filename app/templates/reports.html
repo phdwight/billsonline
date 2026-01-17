@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📊 Reports</h1>
+
+<section class="card">
+  <h2>Contribution Trends</h2>
+  <p class="help-text">Select a date range to view participant contribution totals over time.</p>
+  
+  <form id="report-form" class="report-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="from-month">From:</label>
+        <select id="from-month" name="from_month" required>
+          <option value="">Select start month</option>
+          {% for m in available_months %}
+          <option value="{{ m.value }}" data-year="{{ m.year }}" data-month="{{ m.month }}">{{ m.display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="to-month">To:</label>
+        <select id="to-month" name="to_month" required>
+          <option value="">Select end month</option>
+          {% for m in available_months %}
+          <option value="{{ m.value }}" data-year="{{ m.year }}" data-month="{{ m.month }}">{{ m.display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group form-actions">
+        <button type="submit" class="btn btn-primary">Generate Report</button>
+      </div>
+    </div>
+  </form>
+  
+  {% if not available_months %}
+  <p class="notice">No monthly bills found. Create some bills first to generate reports.</p>
+  {% endif %}
+</section>
+
+<section class="card chart-section" id="chart-section" style="display: none;">
+  <h2>Participant Contributions Over Time</h2>
+  <div class="chart-container">
+    <canvas id="contributions-chart"></canvas>
+  </div>
+  
+  <div class="chart-summary" id="chart-summary"></div>
+</section>
+
+<section class="card chart-section" id="usage-chart-section" style="display: none;">
+  <h2>Electricity Consumption (kWh)</h2>
+  <div class="chart-container">
+    <canvas id="usage-chart"></canvas>
+  </div>
+  
+  <div class="chart-summary" id="usage-summary"></div>
+</section>
+
+<section class="card" id="error-section" style="display: none;">
+  <p class="error" id="error-message"></p>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('report-form');
+  const chartSection = document.getElementById('chart-section');
+  const usageChartSection = document.getElementById('usage-chart-section');
+  const errorSection = document.getElementById('error-section');
+  const errorMessage = document.getElementById('error-message');
+  const chartSummary = document.getElementById('chart-summary');
+  const usageSummary = document.getElementById('usage-summary');
+  
+  let chart = null;
+  let usageChart = null;
+  
+  // Validate date range
+  function validateRange() {
+    const fromSelect = document.getElementById('from-month');
+    const toSelect = document.getElementById('to-month');
+    
+    if (!fromSelect.value || !toSelect.value) return true;
+    
+    const fromOption = fromSelect.selectedOptions[0];
+    const toOption = toSelect.selectedOptions[0];
+    
+    const fromDate = new Date(fromOption.dataset.year, fromOption.dataset.month - 1);
+    const toDate = new Date(toOption.dataset.year, toOption.dataset.month - 1);
+    
+    if (fromDate > toDate) {
+      errorMessage.textContent = 'Start date must be before or equal to end date.';
+      errorSection.style.display = 'block';
+      return false;
+    }
+    
+    errorSection.style.display = 'none';
+    return true;
+  }
+  
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!validateRange()) return;
+    
+    const fromSelect = document.getElementById('from-month');
+    const toSelect = document.getElementById('to-month');
+    
+    const fromOption = fromSelect.selectedOptions[0];
+    const toOption = toSelect.selectedOptions[0];
+    
+    const params = new URLSearchParams({
+      from_year: fromOption.dataset.year,
+      from_month: fromOption.dataset.month,
+      to_year: toOption.dataset.year,
+      to_month: toOption.dataset.month
+    });
+    
+    try {
+      const response = await fetch(`/reports/data?${params}`);
+      const data = await response.json();
+      
+      if (data.error) {
+        errorMessage.textContent = data.error;
+        errorSection.style.display = 'block';
+        chartSection.style.display = 'none';
+        usageChartSection.style.display = 'none';
+        return;
+      }
+      
+      if (data.labels.length === 0) {
+        errorMessage.textContent = 'No data found for the selected range.';
+        errorSection.style.display = 'block';
+        chartSection.style.display = 'none';
+        usageChartSection.style.display = 'none';
+        return;
+      }
+      
+      errorSection.style.display = 'none';
+      chartSection.style.display = 'block';
+      
+      // Destroy existing chart if any
+      if (chart) {
+        chart.destroy();
+      }
+      
+      // Create new chart
+      const ctx = document.getElementById('contributions-chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: data.datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20
+              }
+            },
+            title: {
+              display: true,
+              text: 'Monthly Contributions by Participant',
+              font: {
+                size: 16
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ₱${context.parsed.y.toFixed(2)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Amount (₱)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return '₱' + value.toFixed(0);
+                }
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Month'
+              }
+            }
+          }
+        }
+      });
+      
+      // Generate summary
+      generateSummary(data);
+      
+      // Create usage chart (stacked bar)
+      if (data.usage_datasets && data.usage_datasets.length > 0) {
+        usageChartSection.style.display = 'block';
+        
+        if (usageChart) {
+          usageChart.destroy();
+        }
+        
+        const usageCtx = document.getElementById('usage-chart').getContext('2d');
+        usageChart = new Chart(usageCtx, {
+          type: 'bar',
+          data: {
+            labels: data.labels,
+            datasets: data.usage_datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 20
+                }
+              },
+              title: {
+                display: true,
+                text: 'Monthly Electricity Consumption by Participant',
+                font: {
+                  size: 16
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} kWh`;
+                  },
+                  footer: function(tooltipItems) {
+                    const total = tooltipItems.reduce((sum, item) => sum + item.parsed.y, 0);
+                    return `Total: ${total.toFixed(1)} kWh`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                title: {
+                  display: true,
+                  text: 'Month'
+                }
+              },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Consumption (kWh)'
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value.toFixed(0) + ' kWh';
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+        generateUsageSummary(data);
+      } else {
+        usageChartSection.style.display = 'none';
+      }
+      
+    } catch (err) {
+      errorMessage.textContent = 'Failed to fetch report data. Please try again.';
+      errorSection.style.display = 'block';
+      chartSection.style.display = 'none';
+      usageChartSection.style.display = 'none';
+    }
+  });
+  
+  function generateSummary(data) {
+    if (!data.datasets.length) {
+      chartSummary.innerHTML = '';
+      return;
+    }
+    
+    let html = '<h3>Summary</h3><table class="summary-table"><thead><tr><th>Participant</th><th>Total</th><th>Average</th><th>Min</th><th>Max</th></tr></thead><tbody>';
+    
+    let grandTotal = 0;
+    
+    for (const ds of data.datasets) {
+      const total = ds.data.reduce((a, b) => a + b, 0);
+      const avg = ds.data.length ? total / ds.data.length : 0;
+      const min = ds.data.length ? Math.min(...ds.data) : 0;
+      const max = ds.data.length ? Math.max(...ds.data) : 0;
+      
+      grandTotal += total;
+      
+      html += `<tr>
+        <td><span class="color-dot" style="background-color: ${ds.borderColor}"></span>${ds.label}</td>
+        <td>₱${total.toFixed(2)}</td>
+        <td>₱${avg.toFixed(2)}</td>
+        <td>₱${min.toFixed(2)}</td>
+        <td>₱${max.toFixed(2)}</td>
+      </tr>`;
+    }
+    
+    html += `</tbody><tfoot><tr><td><strong>Grand Total</strong></td><td><strong>₱${grandTotal.toFixed(2)}</strong></td><td colspan="3"></td></tr></tfoot></table>`;
+    
+    chartSummary.innerHTML = html;
+  }
+  
+  function generateUsageSummary(data) {
+    if (!data.usage_datasets || !data.usage_datasets.length) {
+      usageSummary.innerHTML = '';
+      return;
+    }
+    
+    let html = '<h3>Usage Summary</h3><table class="summary-table"><thead><tr><th>Participant</th><th>Total (kWh)</th><th>Average (kWh)</th><th>Min (kWh)</th><th>Max (kWh)</th></tr></thead><tbody>';
+    
+    let grandTotal = 0;
+    
+    for (const ds of data.usage_datasets) {
+      const total = ds.data.reduce((a, b) => a + b, 0);
+      const avg = ds.data.length ? total / ds.data.length : 0;
+      const min = ds.data.length ? Math.min(...ds.data) : 0;
+      const max = ds.data.length ? Math.max(...ds.data) : 0;
+      
+      grandTotal += total;
+      
+      html += `<tr>
+        <td><span class="color-dot" style="background-color: ${ds.backgroundColor}"></span>${ds.label}</td>
+        <td>${total.toFixed(1)}</td>
+        <td>${avg.toFixed(1)}</td>
+        <td>${min.toFixed(1)}</td>
+        <td>${max.toFixed(1)}</td>
+      </tr>`;
+    }
+    
+    html += `</tbody><tfoot><tr><td><strong>Grand Total</strong></td><td><strong>${grandTotal.toFixed(1)} kWh</strong></td><td colspan="3"></td></tr></tfoot></table>`;
+    
+    usageSummary.innerHTML = html;
+  }
+});
+</script>
+{% endblock %}
