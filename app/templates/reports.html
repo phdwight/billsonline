@@ -74,9 +74,26 @@ document.addEventListener('DOMContentLoaded', function() {
   const errorMessage = document.getElementById('error-message');
   const chartSummary = document.getElementById('chart-summary');
   const usageSummary = document.getElementById('usage-summary');
-  
+
   let chart = null;
   let usageChart = null;
+
+  // Auto-select the full available range so the report renders on first visit
+  // instead of showing an empty form.
+  const fromSelectInit = document.getElementById('from-month');
+  const toSelectInit = document.getElementById('to-month');
+  const realOptionsFrom = Array.from(fromSelectInit.options).filter(o => o.value);
+  const realOptionsTo = Array.from(toSelectInit.options).filter(o => o.value);
+  if (realOptionsFrom.length && realOptionsTo.length) {
+    // The server returns months newest-first, so earliest is the LAST option
+    // and latest is the FIRST option.
+    const earliest = realOptionsFrom[realOptionsFrom.length - 1];
+    const latest = realOptionsTo[0];
+    fromSelectInit.value = earliest.value;
+    toSelectInit.value = latest.value;
+    // Trigger the existing submit handler to render the chart immediately.
+    requestAnimationFrame(() => form.requestSubmit());
+  }
   
   // Validate date range
   function validateRange() {

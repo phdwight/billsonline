@@ -6,8 +6,14 @@
 /* Reset & Base */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html { scroll-behavior: smooth; }
 body {
-	font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+	font-feature-settings: "kern", "liga", "calt", "ss01";
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	accent-color: var(--primary);
 	margin: 0;
 	color: var(--text);
 	background: linear-gradient(180deg, var(--bg), var(--panel));
@@ -97,8 +103,10 @@ header .container { display:flex; align-items:center; justify-content: space-bet
 nav a { color: var(--text); text-decoration: none; margin-left: 1rem; opacity:.9; }
 nav a:hover { opacity: 1; }
 
-/* Links */
-a { color: var(--link); text-decoration: underline; }
+/* Links — buttons-as-anchors must not be underlined.
+   Global default is no underline; prose links get an animated underline
+   via the `a:not(.btn):not(.btn-link)::after` rule defined later. */
+a { color: var(--link); text-decoration: none; }
 a:hover { color: var(--link-hover); }
 
 main .container { padding-top: 1.25rem; padding-bottom: 2rem; }
@@ -191,7 +199,15 @@ button, .btn {
 .btn-danger { background: var(--error); color: #fff; }
 .btn-link, .linklike { background:none; border:none; color: var(--link); text-decoration: none; padding: 0; cursor:pointer; }
 .btn-link:hover, .linklike:hover { text-decoration: underline; color: var(--link-hover); }
-.btn:focus, .btn-link:focus, .linklike:focus { outline: 3px solid rgba(27,156,133,0.28); outline-offset: 2px; }
+/* Use :focus-visible so focus rings don't appear on mouse clicks but remain for keyboard nav */
+.btn:focus, .btn-link:focus, .linklike:focus { outline: none; }
+.btn:focus-visible, .btn-link:focus-visible, .linklike:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+	outline-offset: 2px;
+}
+/* Anchor-buttons must never carry the prose underline */
+a.btn, a.btn-action, a.btn-icon, a.btn-link, a.dropdown-item, a.month-link, nav a { text-decoration: none; }
 .btn-primary:hover { 
 	filter: brightness(1.08); 
 	transform: translateY(-1px);
