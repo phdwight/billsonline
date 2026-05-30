@@ -9,6 +9,7 @@ from ..repositories import (
     MonthlyBillRepository,
     BillComponentRepository,
 )
+from ..services.bill_calculator import VALID_SPLIT_METHODS
 from ..services.month_service import MonthService
 
 bp = Blueprint("components", __name__, url_prefix="/months/<int:bill_id>/components")
@@ -57,8 +58,8 @@ def create(bill_id: int):
     if not name:
         flash("Component name is required", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
-    if split not in ("usage", "equal"):
-        flash("Split method must be 'usage' or 'equal'", "error")
+    if split not in VALID_SPLIT_METHODS:
+        flash(f"Split method must be one of {', '.join(VALID_SPLIT_METHODS)}", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
     if amount < 0:
         flash("Amount must be a non-negative number", "error")
@@ -112,8 +113,8 @@ def update(bill_id: int, component_id: int):
             flash("Position must be an integer", "error")
             return redirect(url_for("months.show", bill_id=bill.id))
 
-    if split and split not in ("usage", "equal"):
-        flash("Split method must be 'usage' or 'equal'", "error")
+    if split and split not in VALID_SPLIT_METHODS:
+        flash(f"Split method must be one of {', '.join(VALID_SPLIT_METHODS)}", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
 
     try:

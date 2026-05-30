@@ -16,6 +16,7 @@ from ..repositories import (
     MonthParticipantRepository,
 )
 from ..forms import MonthForm
+from ..services.bill_calculator import VALID_SPLIT_METHODS, DISTRIBUTION_SPLIT_METHODS
 from ..services.month_service import MonthService
 
 bp = Blueprint("months", __name__, url_prefix="/months")
@@ -162,14 +163,14 @@ def create():
         except (ValueError, TypeError):
             amt = 0.0
         sp = (splits[i] if i < len(splits) else 'equal') or 'equal'
-        if sp not in ('usage', 'equal', 'percentage', 'amount'):
+        if sp not in VALID_SPLIT_METHODS:
             sp = 'equal'
         try:
             pos = int((positions[i] if i < len(positions) else i) or i)
         except (ValueError, TypeError):
             pos = i
         distribution = None
-        if sp in ("percentage", "amount"):
+        if sp in DISTRIBUTION_SPLIT_METHODS:
             distribution = _parse_component_distribution(i, participants, request.form)
         try:
             component_repo.add(
@@ -190,11 +191,11 @@ def create():
         elec_dist = None
         water_dist = None
         inet_dist = None
-        if legacy_elec_split in ("percentage", "amount"):
+        if legacy_elec_split in DISTRIBUTION_SPLIT_METHODS:
             elec_dist = _parse_legacy_distribution("electricity", participants, request.form)
-        if legacy_water_split in ("percentage", "amount"):
+        if legacy_water_split in DISTRIBUTION_SPLIT_METHODS:
             water_dist = _parse_legacy_distribution("water", participants, request.form)
-        if legacy_inet_split in ("percentage", "amount"):
+        if legacy_inet_split in DISTRIBUTION_SPLIT_METHODS:
             inet_dist = _parse_legacy_distribution("internet", participants, request.form)
 
         legacy_defs = [
