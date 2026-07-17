@@ -117,8 +117,26 @@ def update(bill_id: int, component_id: int):
         flash(f"Split method must be one of {', '.join(VALID_SPLIT_METHODS)}", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
 
+    # Optional per-participant shares for 'percentage'/'amount' splits (dist_<pid> fields)
+    distribution = {}
+    for key, value in request.form.items():
+        if not key.startswith("dist_") or value == "":
+            continue
+        try:
+            pid = int(key.split("_", 1)[1])
+            distribution[str(pid)] = float(value)
+        except ValueError:
+            continue
+
     try:
-        component_repo.update(component_id, name=name or None, amount=amt_f, split_method=split, position=pos_i)
+        component_repo.update(
+            component_id,
+            name=name or None,
+            amount=amt_f,
+            split_method=split,
+            position=pos_i,
+            distribution=(distribution or None),
+        )
     except IntegrityError:
         db.session.rollback()
         flash("Component name already exists for this month.", "error")

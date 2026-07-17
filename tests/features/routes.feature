@@ -7,15 +7,17 @@ Feature: HTTP Routes
     Given the application is running
 
   # Index Route
-  Scenario: Index redirects to admin when no bills exist
+  Scenario: Index shows billing periods when no bills exist
     Given no bills exist
     When I visit the home page
-    Then I should be redirected to "/admin"
+    Then the response status should be 200
+    And the page should contain "Billing Periods"
 
-  Scenario: Index redirects to latest month when bills exist
+  Scenario: Index lists the month card when bills exist
     Given a bill exists for year 2025 month 6
     When I visit the home page
-    Then I should be redirected to the month detail page
+    Then the response status should be 200
+    And the page should contain "June 2025"
 
   # Admin Route
   Scenario: Admin page returns 200

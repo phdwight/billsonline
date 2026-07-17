@@ -232,8 +232,17 @@ class BasePage:
 
 
 class HomePage(BasePage):
-    """Page object for the home page."""
-    
+    """Page object for the management (admin) page.
+
+    The Industry redesign made "/" a read-only billing-periods grid; the
+    participant/month management UI these helpers drive lives at /admin.
+    """
+
+    def goto(self, path: str = "/"):
+        if path == "/":
+            path = "/admin"
+        super().goto(path)
+
     def __init__(self, page: Page, base_url: str):
         super().__init__(page, base_url)
         self.participant_input = page.locator(".card-header:has-text('Participants') + form input[name='name']")
@@ -270,6 +279,10 @@ class HomePage(BasePage):
         self.page.locator("input[name='internet_amount']").fill(str(internet))
         self.page.locator("button:has-text('Create Month')").click()
         self.wait_for_load()
+        # Creation redirects to the billing-periods home; the month list
+        # these tests assert against lives on the management page.
+        self.goto("/")
+        self.wait_for_load()
     
     def click_month(self, month_name: str):
         """Click on a month to view details."""
@@ -301,8 +314,15 @@ class MonthDetailPage(BasePage):
         self.page.locator("button:has-text('Save Readings')").click()
         self.wait_for_load()
     
+    def open_add_component_form(self):
+        """Expand the collapsed 'Add a component' details block if present."""
+        details = self.page.locator("details:has-text('Add a component')")
+        if details.count() and not details.first.get_attribute("open"):
+            details.first.locator("summary").click()
+
     def add_component(self, name: str, amount: float, split: str = "Equal"):
         """Add a new component."""
+        self.open_add_component_form()
         self.page.locator("input[name='component_name']").fill(name)
         self.page.locator("input[name='component_amount']").fill(str(amount))
         self.page.locator("select[name='component_split_method']").select_option(label=split)

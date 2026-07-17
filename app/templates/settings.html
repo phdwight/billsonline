@@ -1,68 +1,111 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="stack">
-  <div class="page-header">
-    <h1>⚙️ Settings</h1>
-    <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+<div class="page-header">
+  <div>
+    <div class="kicker">Configuration</div>
+    <h1>Settings</h1>
   </div>
-  
-  {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  <div class="upload-status">
-    {% for category, message in messages %}
-      <div class="status-{{ category }}">{{ message }}</div>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% endwith %}
-  
-  <div class="card">
-    <div class="card-header">
-      <h2 class="section-title">🎨 Theme</h2>
+</div>
+
+<div class="grid">
+  <!-- ─── People Directory ─── -->
+  <section class="card blueprint elev-sm detail-section">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="section-head">
+      <svg class="icon icon-lg icon-accent"><use href="#icon-users"/></svg>
+      <h3>People Directory</h3>
     </div>
-    <p class="muted">Choose your preferred color theme.</p>
-    <div class="theme-selector">
-      <label class="theme-option">
-        <input type="radio" name="theme" value="default" id="theme-default">
-        <span class="theme-swatch swatch-default"></span>
-        <span class="theme-label">Default</span>
-      </label>
-      <label class="theme-option">
-        <input type="radio" name="theme" value="vibrant" id="theme-vibrant">
-        <span class="theme-swatch swatch-vibrant"></span>
-        <span class="theme-label">Vibrant</span>
-      </label>
+    <form method="post" action="{{ url_for('participants.create') }}" class="link-row" style="max-width:none">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ url_for('settings.index') }}">
+      <input class="input" type="text" name="name" placeholder="Add a person…" required style="flex:1">
+      <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+    <table class="table">
+      <tbody>
+        {% for p in participants %}
+        <tr>
+          <td class="cell-name">{{ p.name }}</td>
+          <td class="num">
+            <form method="post" action="{{ url_for('participants.delete', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ p.name }}? This will also remove them from all months.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ url_for('settings.index') }}">
+              <button class="btn btn-ghost" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" class="empty-state">No people yet. Add the first person above.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─── Bill Components ─── -->
+  <section class="card blueprint elev-sm detail-section">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="section-head">
+      <svg class="icon icon-lg icon-accent"><use href="#icon-layout"/></svg>
+      <h3>Bill Components</h3>
     </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-header">
-      <h2 class="section-title">💾 Database</h2>
+    <p class="text-muted" style="font-size:13px;margin:0">Default split method applied to each new month. Adjust per-month in the period view.</p>
+    <table class="table">
+      <thead><tr><th>Component</th><th>Default split</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="cell-name">Electricity</td>
+          <td><span class="tag tag-outline">By usage</span></td>
+        </tr>
+        <tr>
+          <td class="cell-name">Water</td>
+          <td><span class="tag tag-outline">Equal</span></td>
+        </tr>
+        <tr>
+          <td class="cell-name">Internet</td>
+          <td><span class="tag tag-outline">Equal</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="field" style="max-width:180px">
+      <label>Currency symbol</label>
+      <input class="input" value="₱" disabled>
     </div>
-    
+  </section>
+
+  <!-- ─── Database ─── -->
+  <section class="card blueprint elev-sm detail-section">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="section-head">
+      <svg class="icon icon-lg icon-accent"><use href="#icon-save"/></svg>
+      <h3>Database</h3>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="upload-status">
+      {% for category, message in messages %}
+        <div class="status-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     <div class="db-actions-grid">
       <div class="db-section">
-        <h3>Backup</h3>
-        <p class="muted">Download a copy of your data.</p>
+        <h4>Backup</h4>
+        <p class="text-muted" style="font-size:13px">Download a copy of your data.</p>
         <a href="{{ url_for('settings.database_download') }}" class="btn btn-primary">
-          <svg class="icon icon-left"><use href="#icon-csv"/></svg>
+          <svg width="15" height="15"><use href="#icon-csv"/></svg>
           Download Database
         </a>
       </div>
-      
-      <div class="db-section db-section-danger">
-        <h3>Restore</h3>
-        <p class="muted">Replace current data with a backup file.</p>
-        <p class="warning-text">⚠️ This will replace all existing data!</p>
-        
+      <div class="db-section">
+        <h4>Restore</h4>
+        <p class="text-muted" style="font-size:13px">Replace current data with a backup file.</p>
+        <p class="warning-text">This will replace all existing data.</p>
         <form method="post" action="{{ url_for('settings.database_upload') }}" enctype="multipart/form-data" id="upload-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="file-input-label">
             <input type="file" name="database" accept=".db" required id="db-file-input">
-            <span class="btn btn-secondary">
-              <svg class="icon icon-left"><use href="#icon-csv"/></svg>
-              Select .db file
-            </span>
+            <span class="btn btn-secondary">Select .db file</span>
           </label>
         </form>
         <div id="upload-indicator" class="upload-indicator hidden">
@@ -70,8 +113,8 @@
         </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
+</div>
 {% endblock %}
 
 {% block scripts %}

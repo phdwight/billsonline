@@ -1,147 +1,306 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card">
 {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
-<div class="card-header">
-  <h2 class="section-title">📅 {{ month_names[bill.month-1] }} {{ bill.year }} {% if bill.archived %}<span class="badge-archived">🔒 Archived</span>{% endif %}</h2>
-  <a href="{{ url_for('admin.admin') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
+{% set month_label = month_names[bill.month-1] ~ ' ' ~ bill.year %}
+{% set members = participants | selectattr('id', 'in', member_ids) | list %}
+{% set method_desc = {'usage': 'By usage split', 'equal': 'Split equally', 'amount': 'Custom amounts', 'percentage': 'Custom percentages'} %}
+{% macro num_val(v) %}{% if v is not none and v != '' %}{{ ('%.2f'|format(v|float)).rstrip('0').rstrip('.') }}{% endif %}{% endmacro %}
+
+<!-- ─── Page header ─── -->
+<div class="detail-header">
+  <div class="detail-header-id">
+    <span class="blueprint page-icon">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <svg width="22" height="22"><use href="#icon-calendar"/></svg>
+    </span>
+    <div>
+      <h1>{{ month_label }}</h1>
+      <div class="page-subline">Billing period · {{ members|length }} participant{{ '' if members|length == 1 else 's' }} · {{ (components or [])|length }} component{{ '' if (components or [])|length == 1 else 's' }}</div>
+    </div>
+  </div>
+  <a href="{{ url_for('home.index') }}" class="btn btn-secondary">
+    <svg width="15" height="15"><use href="#icon-back"/></svg>
+    Back
+  </a>
 </div>
 
-<div class="month-detail-actions">
+<!-- ─── Action bar ─── -->
+<div class="action-bar">
   {% if not bill.archived %}
-  <a class="btn btn-action" href="{{ url_for('months.edit', bill_id=bill.id) }}"><svg class="icon"><use href="#icon-edit"/></svg><span class="action-label">Edit amounts</span></a>
+  <button type="button" class="btn btn-secondary" id="edit-amounts-toggle" aria-pressed="false">
+    <svg width="15" height="15"><use href="#icon-edit"/></svg>
+    Edit amounts
+  </button>
   {% endif %}
-  <a class="btn btn-action" href="{{ url_for('months.export', bill_id=bill.id) }}"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">Export CSV</span></a>
-  {% if not bill.archived %}
+  <a class="btn btn-secondary" href="{{ url_for('months.export', bill_id=bill.id) }}">
+    <svg width="15" height="15"><use href="#icon-csv"/></svg>
+    Export CSV
+  </a>
+  {% if bill.archived %}
+  <form method="post" action="{{ url_for('months.unarchive', bill_id=bill.id) }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary">
+      <svg width="15" height="15"><use href="#icon-unarchive"/></svg>
+      Unarchive
+    </button>
+  </form>
+  <span class="tag tag-neutral">Archived — read only</span>
+  {% else %}
   <form method="post" action="{{ url_for('months.archive', bill_id=bill.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-action"><svg class="icon"><use href="#icon-archive"/></svg><span class="action-label">Archive</span></button>
+    <button type="submit" class="btn btn-secondary">
+      <svg width="15" height="15"><use href="#icon-archive"/></svg>
+      Archive
+    </button>
   </form>
   {% endif %}
+  <div class="action-bar-right">
+    <span class="action-bar-label">Table layout</span>
+    <div class="seg" id="layout-seg">
+      <label class="seg-opt"><input type="radio" name="bo-layout" value="grid" checked>Grid</label>
+      <label class="seg-opt"><input type="radio" name="bo-layout" value="ledger">Ledger</label>
+    </div>
+  </div>
 </div>
 
-<section class="card" style="margin-top: var(--gap);">
+<div id="layout-root" class="layout-grid">
+
+<!-- ─── Meter Readings ─── -->
+<section class="card blueprint elev-sm detail-section">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
   <div class="card-header">
-    <h3>⚡ Meter Readings</h3>
+    <div class="section-head">
+      <svg class="icon icon-lg icon-accent"><use href="#icon-zap"/></svg>
+      <h3>Meter Readings</h3>
+    </div>
+    <span class="tag tag-accent">kWh · usage split</span>
   </div>
+
   {% if bill.archived %}
-  <div class="muted"><small>This month is archived. Readings cannot be changed.</small></div>
-  <table class="adj-table">
-      <thead>
-        <tr class="adj-row">
-          <th>Participant</th>
-          <th>Previous</th>
-          <th>Current</th>
-          <th>Usage</th>
-        </tr>
-      </thead>
+  <div class="table-scroll when-grid">
+    <table class="table">
+      <thead><tr><th>Participant</th><th>Previous</th><th>Current</th><th class="num">Usage (kWh)</th></tr></thead>
       <tbody>
-        {% for p in participants %}
-        {% if p.id in member_ids %}
+        {% for p in members %}
         {% set r = readings_by_pid.get(p.id) %}
         <tr>
-          <td>{{ p.name }}</td>
-          <td>{{ (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id)) if prev_readings_map is defined else (r.reading_previous if r else '') }}</td>
-          <td>{{ r.reading_current if r else '' }}</td>
-          <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
+          <td class="cell-name">{{ p.name }}</td>
+          <td>{{ num_val(r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id)) or '—' }}</td>
+          <td>{{ num_val(r.reading_current if r else none) or '—' }}</td>
+          <td class="cell-usage">{{ '{:,.2f}'.format(r.usage() if r else 0) }}</td>
         </tr>
-        {% endif %}
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  <div class="meter-ledger when-ledger">
+    {% for p in members %}
+    {% set r = readings_by_pid.get(p.id) %}
+    <div class="blueprint meter-ledger-card">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="meter-ledger-head">
+        <span class="meter-ledger-name">{{ p.name }}</span>
+        <span class="mini-label">Usage</span>
+      </div>
+      <div class="meter-ledger-usage">{{ '{:,.2f}'.format(r.usage() if r else 0) }}<span class="unit">kWh</span></div>
+      <div class="card-meta">Previous {{ num_val(r.reading_previous if r and r.reading_previous is not none else none) or '—' }} · Current {{ num_val(r.reading_current if r else none) or '—' }}</div>
+    </div>
+    {% endfor %}
+  </div>
   {% else %}
-  <form method="post" action="{{ url_for('months.readings_update', bill_id=bill.id) }}" class="readings-form">
+  <form method="post" action="{{ url_for('months.readings_update', bill_id=bill.id) }}" class="readings-form stack" id="readings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <table class="adj-table">
-      <thead>
-  <tr class="adj-row">
-          <th>Participant</th>
-          <th>Previous</th>
-          <th>Current</th>
-          <th>Usage</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in participants %}
-  {% if p.id in member_ids %}
-  {% set r = readings_by_pid.get(p.id) %}
-        <tr>
-          <td>{{ p.name }}</td>
-          <td>
-            <input type="number" name="previous_{{ p.id }}" step="0.01"
-                   value="{{ (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id)) if prev_readings_map is defined else (r.reading_previous if r else '') }}">
-          </td>
-          <td><input type="number" name="current_{{ p.id }}" step="0.01" value="{{ r.reading_current if r else '' }}"></td>
-          <td>{{ '%.2f'|format(r.usage()) if r else '0.00' }}</td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-  <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Readings</button>
+    <div class="table-scroll when-grid">
+      <table class="table">
+        <thead><tr><th>Participant</th><th>Previous</th><th>Current</th><th class="num">Usage (kWh)</th></tr></thead>
+        <tbody>
+          {% for p in members %}
+          {% set r = readings_by_pid.get(p.id) %}
+          {% set prev_val = (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id, '')) %}
+          <tr>
+            <td class="cell-name">{{ p.name }}</td>
+            <td style="width:26%"><input class="input" type="number" step="0.01" name="previous_{{ p.id }}" value="{{ num_val(prev_val) }}" data-reading="prev-{{ p.id }}"></td>
+            <td style="width:26%"><input class="input" type="number" step="0.01" name="current_{{ p.id }}" value="{{ num_val(r.reading_current if r else none) }}" data-reading="curr-{{ p.id }}"></td>
+            <td class="cell-usage" data-usage-for="{{ p.id }}">{{ '{:,.2f}'.format(r.usage() if r else 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="meter-ledger when-ledger">
+      {% for p in members %}
+      {% set r = readings_by_pid.get(p.id) %}
+      {% set prev_val = (r.reading_previous if r and r.reading_previous is not none else prev_readings_map.get(p.id, '')) %}
+      <div class="blueprint meter-ledger-card">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="meter-ledger-head">
+          <span class="meter-ledger-name">{{ p.name }}</span>
+          <span class="mini-label">Usage</span>
+        </div>
+        <div class="meter-ledger-usage"><span data-usage-for="{{ p.id }}">{{ '{:,.2f}'.format(r.usage() if r else 0) }}</span><span class="unit">kWh</span></div>
+        <div class="meter-ledger-inputs">
+          <div class="field"><label>Previous</label><input class="input" type="number" step="0.01" value="{{ num_val(prev_val) }}" data-mirror="prev-{{ p.id }}"></div>
+          <div class="field"><label>Current</label><input class="input" type="number" step="0.01" value="{{ num_val(r.reading_current if r else none) }}" data-mirror="curr-{{ p.id }}"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">
+        <svg width="15" height="15"><use href="#icon-save"/></svg>
+        Save Readings
+      </button>
+      {% if request.args.get('saved') %}
+      <span class="save-confirm" id="save-confirm">
+        <svg width="15" height="15"><use href="#icon-check"/></svg>
+        Readings saved
+      </span>
+      {% endif %}
+    </div>
   </form>
   {% endif %}
-  </section>
+</section>
 
-  <section class="card" style="margin-top: var(--gap);">
-    <div class="card-header">
-      <h3>👥 Month Participants</h3>
-    </div>
-    {% if bill.archived %}
-      <div class="muted"><small>This month is archived. Membership cannot be changed.</small></div>
-    {% else %}
-    <form method="post" action="{{ url_for('months.participants_create', bill_id=bill.id) }}" class="inline-add-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <select name="participant_id">
-        <option value="">Link participant...</option>
-        {% for p in participants %}
-          {% if p.id not in member_ids %}
-            <option value="{{ p.id }}">{{ p.name }}</option>
+<!-- ─── Month Participants ─── -->
+<section class="card blueprint elev-sm detail-section">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="section-head">
+    <svg class="icon icon-lg icon-accent"><use href="#icon-users"/></svg>
+    <h3>Month Participants</h3>
+  </div>
+  {% if not bill.archived %}
+  <form method="post" action="{{ url_for('months.participants_create', bill_id=bill.id) }}" class="link-row">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="participant_id" class="input">
+      <option value="">Link participant…</option>
+      {% for p in participants if p.id not in member_ids %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary btn-icon" type="submit" title="Add participant">
+      <svg width="18" height="18"><use href="#icon-plus"/></svg>
+    </button>
+  </form>
+  {% endif %}
+  <table class="table">
+    <thead><tr><th>Participant</th><th class="num">Actions</th></tr></thead>
+    <tbody>
+      {% for p in members %}
+      <tr>
+        <td class="cell-name">{{ p.name }}</td>
+        <td class="num">
+          {% if not bill.archived %}
+          <form method="post" action="{{ url_for('months.participants_delete', bill_id=bill.id, pid=p.id) }}" style="display:inline" onsubmit="return confirm('Unlink {{ p.name }} from this month?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-secondary" type="submit" style="color:var(--color-accent-700)">
+              <svg width="14" height="14"><use href="#icon-delete"/></svg>
+              Remove
+            </button>
+          </form>
+          {% else %}
+          <span class="muted"><small>Locked</small></span>
           {% endif %}
-        {% endfor %}
-      </select>
-      <button class="btn btn-primary btn-icon" type="submit" title="Add participant">+</button>
-    </form>
-    {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
 
-    <table class="adj-table" style="margin-top:.5rem;">
-      <thead>
-        <tr><th>Participant</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        {% for p in participants %}
-          {% if p.id in member_ids %}
-            <tr>
-              <td>{{ p.name }}</td>
-              <td>
-                {% if not bill.archived %}
-                <form method="post" action="{{ url_for('months.participants_delete', bill_id=bill.id, pid=p.id) }}" style="display:inline;">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-secondary" type="submit" onclick="return confirm('Unlink {{ p.name }} from this month?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Remove</button>
-                </form>
-                {% else %}
-                  <span class="muted"><small>Locked</small></span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
+<!-- ─── Per-Component Adjustments ─── -->
+<section class="card blueprint elev-sm detail-section">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="section-head">
+    <svg class="icon icon-lg icon-accent"><use href="#icon-wrench"/></svg>
+    <h3>Per-Component Adjustments</h3>
+  </div>
 
-  <section class="card" style="margin-top: var(--gap);">
-    <div class="card-header">
-      <h3>🧱 Components</h3>
+  {% if not components %}
+  <p class="text-muted" style="font-size:13px;margin:0">No components yet. Add one below to start splitting this month's bills.</p>
+  {% if (bill.electricity_amount or bill.water_amount or bill.internet_amount) and not bill.archived %}
+  <form method="post" action="{{ url_for('components.convert_legacy', bill_id=bill.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-secondary" type="submit">Convert legacy amounts to components</button>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  <div class="adjust-list">
+    {% for comp in components %}
+    <div class="blueprint adjust-block" data-adjust-block data-method="{{ comp.split_method }}">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      {% if bill.archived %}
+      <div class="adjust-head">
+        <div class="adjust-title">
+          <h4>{{ comp.name }}</h4>
+          <span class="text-muted" style="font-size:13px">{{ method_desc.get(comp.split_method, comp.split_method) }}</span>
+        </div>
+        <div class="cell-total">₱{{ '{:,.2f}'.format(comp.amount|float) }}</div>
+      </div>
+      {% else %}
+      <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" class="stack" data-component-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="adjust-head">
+          <div class="adjust-title">
+            <h4>{{ comp.name }}</h4>
+            <span class="text-muted" style="font-size:13px">{{ method_desc.get(comp.split_method, comp.split_method) }}</span>
+          </div>
+          <div class="adjust-controls">
+            <div class="field adjust-total">
+              <label>Bill total</label>
+              <input class="input" type="number" step="0.01" min="0" name="amount" value="{{ '%.2f'|format(comp.amount|float) }}" data-bill-total disabled>
+            </div>
+            <div class="field">
+              <label>Split method</label>
+              <div class="seg">
+                <label class="seg-opt"><input type="radio" name="split_method" value="usage" {% if comp.split_method == 'usage' %}checked{% endif %} data-method-radio>Usage</label>
+                <label class="seg-opt"><input type="radio" name="split_method" value="equal" {% if comp.split_method == 'equal' %}checked{% endif %} data-method-radio>Equal</label>
+                <label class="seg-opt"><input type="radio" name="split_method" value="amount" {% if comp.split_method == 'amount' %}checked{% endif %} data-method-radio>Amount</label>
+                <label class="seg-opt"><input type="radio" name="split_method" value="percentage" {% if comp.split_method == 'percentage' %}checked{% endif %} data-method-radio>Percent</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="adjust-custom" data-custom-block {% if comp.split_method not in ('amount', 'percentage') %}hidden{% endif %}>
+          <div class="sum-line" data-sum-line>
+            <span class="sum-label">Sum:</span>
+            <span class="sum-value" data-sum-value>—</span>
+            <span class="sum-check"><svg width="15" height="15"><use href="#icon-check"/></svg></span>
+          </div>
+          <div class="share-grid">
+            {% set dist = comp.distribution or {} %}
+            {% for p in members %}
+            <div class="share-row">
+              <span class="share-name">{{ p.name }}</span>
+              <input class="input" type="number" step="0.01" min="0" name="dist_{{ p.id }}" value="{{ dist.get(p.id|string, dist.get(p.id, '')) }}" data-share-input>
+              <span class="share-derived" data-share-derived></span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="adjust-foot">
+          <button class="btn btn-secondary btn-sm" type="submit">Apply changes</button>
+          <button class="btn btn-ghost btn-sm" type="submit" form="delete-comp-{{ comp.id }}" onclick="return confirm('Delete component {{ comp.name }}?')">Delete component</button>
+        </div>
+      </form>
+      <form id="delete-comp-{{ comp.id }}" method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      </form>
+      {% endif %}
     </div>
-    {% if bill.archived %}
-      <div class="muted"><small>This month is archived. Components cannot be changed.</small></div>
-    {% else %}
-    <form method="post" action="{{ url_for('components.create', bill_id=bill.id) }}" class="component-add-form">
+    {% endfor %}
+  </div>
+
+  {% if not bill.archived %}
+  <details class="redis-details">
+    <summary>Add a component</summary>
+    <form method="post" action="{{ url_for('components.create', bill_id=bill.id) }}" class="stack" style="margin-top:var(--space-3)">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row">
         <label><small>Name</small>
-          <input type="text" name="component_name" placeholder="e.g., Electricity" required>
+          <input type="text" name="component_name" placeholder="e.g., Gas" required>
         </label>
         <label><small>Amount</small>
           <input type="number" name="component_amount" step="0.01" min="0" required>
@@ -150,201 +309,66 @@
           <select name="component_split_method">
             <option value="equal">Equal</option>
             <option value="usage">By usage</option>
+            <option value="amount">Custom amounts</option>
+            <option value="percentage">Custom percentages</option>
           </select>
         </label>
         <label><small>Position</small>
-          <input type="number" name="component_position" step="1" value="0">
+          <input type="number" name="component_position" step="1" value="{{ (components or [])|length }}">
         </label>
       </div>
-      <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Add Component</button>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Add Component</button>
+      </div>
     </form>
-    {% endif %}
+  </details>
+  {% endif %}
 
-    {% if components %}
-    <table class="adj-table components-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Amount</th>
-          <th>Split</th>
-          <th>Position</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+  {% if components and not bill.archived %}
+  <details class="redis-details">
+    <summary>Advanced redistribution</summary>
+    <p class="text-muted" style="font-size:12px;margin:var(--space-2) 0 0">Shift part of one participant's share to others, per component.</p>
+    <form id="comp-adjustments-form" method="post" action="{{ url_for('adjustments.update', bill_id=bill.id) }}" style="margin-top:var(--space-3)">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Redistribution <button type="button" class="linklike comp-adj-toggle-all" data-comp="*" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
+          </tr>
+        </thead>
+        <tbody>
         {% for comp in components %}
-        <tr>
-          <td>{{ comp.name }}</td>
-          <td>₱ {{ '%.2f'|format(comp.amount|float) }}</td>
-          <td>{{ 'By usage' if comp.split_method == 'usage' else 'Equal' }}</td>
-          <td>{{ comp.position }}</td>
-          <td>
-            {% if not bill.archived %}
-            <div class="component-actions">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="toggleComponentEdit(this)"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Edit</button>
-              <form method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-secondary btn-sm" type="submit" onclick="return confirm('Delete component {{ comp.name }}?')"><svg class="icon icon-left"><use href="#icon-delete"/></svg>Delete</button>
-              </form>
-            </div>
-            {% else %}
-              <span class="muted"><small>Locked</small></span>
-            {% endif %}
-          </td>
-        </tr>
-        {% if not bill.archived %}
-        <tr class="component-edit-row" style="display:none;">
-          <td colspan="5">
-            <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" class="component-edit-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="row">
-                <label><small>Name</small>
-                  <input type="text" name="name" placeholder="{{ comp.name }}">
-                </label>
-                <label><small>Amount</small>
-                  <input type="number" name="amount" step="0.01" min="0" placeholder="{{ '%.2f'|format(comp.amount|float) }}">
-                </label>
-                <label><small>Split</small>
-                  <select name="split_method">
-                    <option value="">— Keep —</option>
-                    <option value="equal" {% if comp.split_method == 'equal' %}selected{% endif %}>Equal</option>
-                    <option value="usage" {% if comp.split_method == 'usage' %}selected{% endif %}>By usage</option>
-                  </select>
-                </label>
-                <label><small>Position</small>
-                  <input type="number" name="position" step="1" placeholder="{{ comp.position }}">
-                </label>
-              </div>
-              <div class="component-edit-actions">
-                <button class="btn btn-primary btn-sm" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Update</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleComponentEdit(this)">Cancel</button>
-              </div>
-            </form>
-          </td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-      <div class="muted"><small>No components yet. Add one above.</small></div>
-    {% endif %}
-    {% if not components and (bill.electricity_amount or bill.water_amount or bill.internet_amount) and not bill.archived %}
-      <form method="post" action="{{ url_for('components.convert_legacy', bill_id=bill.id) }}" style="margin-top:.5rem;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-secondary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Convert legacy amounts to components</button>
-      </form>
-    {% endif %}
-  </section>
-
-<section class="card" style="margin-top: var(--gap);">
-  <div class="card-header">
-    <h3>🔧 Per-Component Adjustments</h3>
-  </div>
-  {% if not components %}
-    <div class="muted"><small>No components to adjust.</small></div>
-  {% elif bill.archived %}
-    <div class="muted"><small>This month is archived. Adjustments are view-only.</small></div>
-    <table>
-      <thead>
-        <tr>
-          <th>Participant</th>
-          <th>Mode</th>
-          <th>Targets</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for comp in components %}
-        <tr>
-          <th colspan="3" class="group-header"><strong>{{ comp.name }}</strong> <span class="muted">— {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</span></th>
-        </tr>
-        {% for p in participants %}
-          {% if p.id in member_ids %}
+          <tr>
+            <th colspan="2" class="group-header"><strong>{{ comp.name }}</strong> <span class="muted">— {{ method_desc.get(comp.split_method, comp.split_method) }}</span> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></th>
+          </tr>
+          {% for p in members %}
           {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
           {% set rule = adj.get('rule') or {} %}
           <tr>
-            <td>{{ p.name }}</td>
-            <td>{{ (rule.get('mode')|capitalize) if rule.get('mode') else 'None' }}</td>
+            <td class="cell-name">{{ p.name }}</td>
             <td>
-              {% if rule.get('mode') == 'percent' %}
-                {% set t = rule.get('targets') or {} %}
-                {% set items = [] %}
-                {% for tpid, val in t.items() %}
-                  {% set tid = (tpid|string)|int %}
-                  {% set tname = participant_name_by_id.get(tid) or tpid %}
-                  {% set _ = items.append(tname ~ ': ' ~ ('%.2f'|format(val|float)) ~ '%') %}
-                {% endfor %}
-                {{ items|join(', ') if items else '—' }}
-              {% elif rule.get('mode') == 'amount' %}
-                {% set t = rule.get('targets') or {} %}
-                {% set items = [] %}
-                {% for tpid, val in t.items() %}
-                  {% set tid = (tpid|string)|int %}
-                  {% set tname = participant_name_by_id.get(tid) or tpid %}
-                  {% set _ = items.append(tname ~ ': ₱' ~ ('%.2f'|format(val|float))) %}
-                {% endfor %}
-                {{ items|join(', ') if items else '—' }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-          </tr>
-          {% endif %}
-        {% endfor %}
-      {% endfor %}
-      </tbody>
-    </table>
-  {% else %}
-  <form id="comp-adjustments-form" method="post" action="{{ url_for('adjustments.update', bill_id=bill.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <table>
-      <thead>
-        <tr>
-          <th>Participant</th>
-          <th>Redistribution <button type="button" class="linklike comp-adj-toggle-all" data-comp="*" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Details</button></th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for comp in components %}
-        <tr>
-          <th colspan="2" class="group-header"><strong>{{ comp.name }}</strong> <span class="muted">— {{ 'By usage' if comp.split_method == 'usage' else 'Equal' }} split</span> <button type="button" class="linklike comp-adj-toggle" data-comp="{{ comp.id }}" aria-expanded="false"><span class="adj-toggle-icon" aria-hidden="true">▸</span> Toggle details</button></th>
-        </tr>
-        {% for p in participants %}
-          {% if p.id in member_ids %}
-          <tr>
-            <td>{{ p.name }}</td>
-            <td>
-              {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
-              {% set rule = adj.get('rule') or {} %}
-              {% set all_participants = [] %}
-              {% for t in participants %}
-                {% if t.id in member_ids %}
-                  {% set _ = all_participants.append(t.name) %}
-                {% endif %}
-              {% endfor %}
               <div class="redis-summary-inline">
-                <span class="muted"><small>To: {{ all_participants|join(', ') if all_participants else '—' }}</small></span>
+                <span class="muted"><small>To: {{ members|map(attribute='name')|join(', ') }}</small></span>
               </div>
               <div class="comp-redis-box" data-panel="comp-{{ comp.id }}-{{ p.id }}" style="display:none;">
-                <div style="display:flex; gap:.25rem; align-items:center; flex-wrap:wrap; margin-bottom:.25rem;">
-                <select name="mode_comp_{{ comp.id }}_{{ p.id }}" id="mode_comp_{{ comp.id }}_{{ p.id }}">
-                  <option value="" {% if not rule.get('mode') %}selected{% endif %}>— None —</option>
-                  <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
-                  <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
-                </select>
-                <span class="muted" data-redis-summary="comp-{{ comp.id }}-{{ p.id }}"><small></small></span>
+                <div style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap; margin-bottom:var(--space-2);">
+                  <select name="mode_comp_{{ comp.id }}_{{ p.id }}" id="mode_comp_{{ comp.id }}_{{ p.id }}">
+                    <option value="" {% if not rule.get('mode') %}selected{% endif %}>— None —</option>
+                    <option value="percent" {% if rule.get('mode') == 'percent' %}selected{% endif %}>Percent</option>
+                    <option value="amount" {% if rule.get('mode') == 'amount' %}selected{% endif %}>Amount</option>
+                  </select>
+                  <span class="muted" data-redis-summary="comp-{{ comp.id }}-{{ p.id }}"><small></small></span>
                 </div>
-                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto auto; gap:.25rem .5rem; margin-left:.5rem;">
-                  {% for t in participants %}
-                    {% if t.id in member_ids %}
-                      <label><small>{{ t.name }}{% if t.id == p.id %} (self){% endif %}</small></label>
-                      {% set targets = rule.get('targets') or {} %}
-                      <input type="number" step="0.01" min="0" name="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" id="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:6rem;">
-                      <span class="redis-computed muted" data-computed="comp-{{ comp.id }}-{{ p.id }}-{{ t.id }}"><small></small></span>
-                    {% endif %}
+                <div class="redis-grid" style="display:grid; grid-template-columns: auto auto auto; gap:var(--space-1) var(--space-3); margin-left:var(--space-3);">
+                  {% for t in members %}
+                  <label><small>{{ t.name }}{% if t.id == p.id %} (self){% endif %}</small></label>
+                  {% set targets = rule.get('targets') or {} %}
+                  <input type="number" step="0.01" min="0" name="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" id="redis_comp_{{ comp.id }}_{{ p.id }}_{{ t.id }}" value="{{ targets.get(t.id) or targets.get(t.id|string) or '' }}" placeholder="0" style="width:6rem;">
+                  <span class="redis-computed muted" data-computed="comp-{{ comp.id }}-{{ p.id }}-{{ t.id }}"><small></small></span>
                   {% endfor %}
                 </div>
-                <div style="margin-top:.5rem; margin-left:.5rem;">
+                <div style="margin-top:var(--space-3); margin-left:var(--space-3);">
                   <label><small class="muted">Notes:</small>
                     <input type="text" name="notes_comp_{{ comp.id }}_{{ p.id }}" value="{{ adj.get('notes') or '' }}" placeholder="Optional description..." maxlength="255" style="width:100%; max-width:20rem;">
                   </label>
@@ -352,97 +376,107 @@
               </div>
             </td>
           </tr>
-          {% endif %}
+          {% endfor %}
         {% endfor %}
-      {% endfor %}
-      </tbody>
-    </table>
-    <button class="btn btn-primary" type="submit"><svg class="icon icon-left"><use href="#icon-edit"/></svg>Save Adjustments</button>
-  </form>
+        </tbody>
+      </table>
+      <div class="form-actions" style="margin-top:var(--space-3)">
+        <button class="btn btn-primary" type="submit">Save Adjustments</button>
+      </div>
+    </form>
+  </details>
   {% endif %}
 </section>
 
-<section class="card" style="margin-top: var(--gap);">
-  <div class="card-header">
-    <h3>💰 Contributions</h3>
+<!-- ─── Contributions ─── -->
+<section class="card blueprint elev-sm detail-section">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="section-head">
+    <svg class="icon icon-lg icon-accent"><use href="#icon-dollar"/></svg>
+    <h3>Contributions</h3>
   </div>
   {% if components and dynamic_contributions %}
-  <p class="muted" style="margin-top:.25rem;"><small>
-    Totals reflect your dynamic components. The CSV export uses these columns.
-  </small></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Participant</th>
-        {% for comp in components %}
-          <th>{{ comp.name }}</th>
+  <p class="text-muted" style="font-size:13px;margin:0">Totals reflect your dynamic components. The CSV export uses these columns.</p>
+  {% set grand = components|map(attribute='amount')|sum %}
+
+  <div class="table-scroll when-grid">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Participant</th>
+          {% for comp in components %}<th class="num">{{ comp.name }}</th>{% endfor %}
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in dynamic_contributions %}
+        <tr>
+          <td class="cell-name">{{ c.participant.name }}</td>
+          {% for comp in components %}
+          <td class="num">{{ '{:,.2f}'.format(c.components.get(comp.name, 0.0)|float) }}</td>
+          {% endfor %}
+          <td class="cell-total">₱{{ '{:,.2f}'.format(c.total|float) }}</td>
+        </tr>
         {% endfor %}
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in dynamic_contributions %}
-      <tr>
-        <td>{{ c.participant.name }}</td>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="totals-label">Totals</td>
+          {% for comp in components %}
+          <td class="totals-num">{{ '{:,.2f}'.format(comp.amount|float) }}</td>
+          {% endfor %}
+          <td class="grand-total">₱{{ '{:,.2f}'.format(grand|float) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="contrib-ledger when-ledger">
+    {% for c in dynamic_contributions %}
+    <div class="blueprint contrib-ledger-row">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <span class="contrib-ledger-name">{{ c.participant.name }}</span>
+      <div class="contrib-ledger-cells">
         {% for comp in components %}
-          {% set val = c.components.get(comp.name, 0.0) %}
-          <td>{{ '%.2f'|format(val|float) }}</td>
+        <div>
+          <div class="mini-label">{{ comp.name }}</div>
+          <div class="contrib-cell-amt">{{ '{:,.2f}'.format(c.components.get(comp.name, 0.0)|float) }}</div>
+        </div>
         {% endfor %}
-        <td><strong>{{ '%.2f'|format(c.total) }}</strong></td>
-      </tr>
-      {% endfor %}
-      <tr>
-        <td style="text-align:right"><strong>Totals</strong></td>
-        {% for comp in components %}
-          <td><strong>{{ '%.2f'|format(comp.amount|float) }}</strong></td>
-        {% endfor %}
-        {% set grand = components|map(attribute='amount')|sum %}
-        <td><strong>{{ '%.2f'|format(grand|float) }}</strong></td>
-      </tr>
-    </tbody>
-  </table>
+      </div>
+      <div class="contrib-ledger-total">
+        <div class="mini-label mini-label-accent">Total</div>
+        <div class="amt">₱{{ '{:,.2f}'.format(c.total|float) }}</div>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="contrib-grand">
+      <span class="totals-label">Grand total</span>
+      <span class="amt">₱{{ '{:,.2f}'.format(grand|float) }}</span>
+    </div>
+  </div>
   {% else %}
-    <div class="muted"><small>No components yet. Add components above to see contributions.</small></div>
+  <p class="text-muted" style="font-size:13px;margin:0">No components yet. Add components above to see contributions.</p>
   {% endif %}
 </section>
 
+</div><!-- /layout-root -->
+
 <div class="page-bottom-actions">
-  <a href="{{ url_for('admin.admin') }}" class="btn btn-secondary"><svg class="icon icon-left"><use href="#icon-back"/></svg>Discard & Go Back</a>
-</div>
+  <a href="{{ url_for('home.index') }}" class="btn btn-secondary">
+    <svg width="15" height="15"><use href="#icon-back"/></svg>
+    Discard &amp; Go Back
+  </a>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/month-detail.js') }}"></script>
+<script src="{{ url_for('static', filename='js/industry.js') }}"></script>
 <script>
-// Initialize with component data from server
 initMonthDetail(
   {{ (components or [])|map(attribute="id")|list|tojson|safe }},
   {{ (dynamic_base_maps or {})|tojson|safe }}
 );
-
-// Toggle component edit row
-function toggleComponentEdit(btn) {
-  const row = btn.closest('tr');
-  const editRow = row.classList.contains('component-edit-row') 
-    ? row 
-    : row.nextElementSibling;
-  if (editRow && editRow.classList.contains('component-edit-row')) {
-    const isHidden = editRow.style.display === 'none';
-    editRow.style.display = isHidden ? 'table-row' : 'none';
-  }
-}
-
-// More actions dropdown toggle
-function toggleMoreActions(btn) {
-  const container = btn.closest('.action-more');
-  const wasOpen = container.classList.contains('open');
-  document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
-  if (!wasOpen) container.classList.add('open');
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.action-more')) {
-    document.querySelectorAll('.action-more.open').forEach(el => el.classList.remove('open'));
-  }
-});
 </script>
 {% endblock %}

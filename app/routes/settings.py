@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
 
 from ..extensions import db
+from ..repositories import ParticipantRepository
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 
@@ -16,7 +17,8 @@ bp = Blueprint("settings", __name__, url_prefix="/settings")
 @bp.get("/")
 def index():
     """GET /settings - Settings page."""
-    return render_template("settings.html")
+    participants = ParticipantRepository().list_all()
+    return render_template("settings.html", participants=participants)
 
 
 @bp.get("/database")

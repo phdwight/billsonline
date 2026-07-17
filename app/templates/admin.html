@@ -2,24 +2,28 @@
 {% block content %}
 <section class="stack">
   <div class="page-header">
-    <h1>🔧 Admin</h1>
+    <div>
+      <div class="kicker">Management</div>
+      <h1>Admin</h1>
+    </div>
     <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Home</a>
   </div>
   <div class="admin-nav">
-    <a class="btn btn-secondary" href="{{ url_for('months.new') }}">➕ New Month</a>
-    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">👥 Participants</a>
-    <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">📦 Archived</a>
-    <a class="btn btn-secondary" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ '📐 Compact: Off' if request.args.get('compact') else '📐 Compact: On' }}</a>
+    <a class="btn btn-secondary" href="{{ url_for('months.new') }}">New Month</a>
+    <a class="btn btn-secondary" href="{{ url_for('participants.index') }}">Participants</a>
+    <a class="btn btn-secondary" href="{{ url_for('months.archived') }}">Archived</a>
+    <a class="btn btn-secondary" href="?compact={{ 0 if request.args.get('compact') else 1 }}">{{ 'Compact: Off' if request.args.get('compact') else 'Compact: On' }}</a>
   </div>
 </section>
 <section class="grid">
     <div class="card">
       <div class="card-header">
-        <h2 class="section-title">👥 Participants</h2>
+        <h2 class="section-title">Participants</h2>
         <a href="{{ url_for('participants.index') }}" class="btn btn-link btn-sm">Manage</a>
       </div>
       <form method="post" action="{{ url_for('participants.create') }}" class="stack">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ url_for('admin.admin') }}">
         <div class="input-with-button">
           <input type="text" name="name" placeholder="Add new participant..." required>
           <button class="btn btn-primary btn-icon" type="submit" title="Add participant">+</button>
@@ -39,8 +43,8 @@
 
     <div class="card">
       <div class="card-header">
-        <h2 class="section-title">📅 Months</h2>
-        <a href="{{ url_for('months.archived') }}" class="btn btn-link btn-sm">📦 Archived</a>
+        <h2 class="section-title">Months</h2>
+        <a href="{{ url_for('months.archived') }}" class="btn btn-link btn-sm">Archived</a>
       </div>
   <form method="post" action="{{ url_for('months.create') }}" class="stack" onsubmit="return validateCreationDistributions(this)">
         {{ form.csrf_token }}
@@ -138,7 +142,7 @@
           </div>
           <button type="button" class="btn btn-secondary" onclick="addCompRow(this)">+ Add another</button>
         </details>
-        <button class="btn btn-primary" type="submit">✨ Create Month</button>
+        <button class="btn btn-primary" type="submit">Create Month</button>
       </form>
 
       <ul class="month-list">
@@ -146,7 +150,7 @@
         <li class="month-item">
           {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
           <a href="{{ url_for('months.show', bill_id=m.id) }}" class="month-link">
-            <span class="month-icon">📆</span>
+            
             <span class="month-name">{{ m.year }}-{{ month_names[m.month-1] }}</span>
           </a>
           <div class="month-actions">
@@ -181,8 +185,8 @@
     </div>
   </section>
   <section class="card quick-links" style="margin-top: var(--gap);">
-    <a class="btn btn-secondary" href="{{ url_for('settings.index') }}">⚙️ Settings</a>
-    <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">💾 Backup Database</a>
+    <a class="btn btn-secondary" href="{{ url_for('settings.index') }}">Settings</a>
+    <a class="btn btn-secondary" href="{{ url_for('settings.database_download') }}">Backup Database</a>
   </section>
 {% endblock %}
 {% block scripts %}

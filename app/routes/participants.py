@@ -15,6 +15,14 @@ def _get_participants_repo() -> ParticipantRepository:
     return ParticipantRepository()
 
 
+def _redirect_back(default_endpoint: str):
+    """Redirect to the in-app path given via the 'next' form field, else default."""
+    nxt = request.form.get("next", "")
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return redirect(nxt)
+    return redirect(url_for(default_endpoint))
+
+
 @bp.get("/")
 def index():
     """GET /participants - List all participants."""
@@ -40,7 +48,7 @@ def create():
             except IntegrityError:
                 db.session.rollback()
                 flash("A participant with that name already exists", "error")
-    return redirect(url_for("home.index"))
+    return _redirect_back("home.index")
 
 
 @bp.post("/<int:pid>")
@@ -66,4 +74,4 @@ def delete(pid: int):
     participants_repo = _get_participants_repo()
     participants_repo.delete(pid)
     flash("Participant deleted", "info")
-    return redirect(url_for("participants.index"))
+    return _redirect_back("participants.index")

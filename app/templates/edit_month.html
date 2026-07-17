@@ -3,7 +3,7 @@
 <div class="card">
   {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
   <div class="card-header">
-    <h2 class="section-title">✏️ Edit {{ month_names[bill.month-1] }} {{ bill.year }}</h2>
+    <h2 class="section-title">Edit {{ month_names[bill.month-1] }} {{ bill.year }}</h2>
     <a href="{{ url_for('months.show', bill_id=bill.id) }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Cancel</a>
   </div>
   

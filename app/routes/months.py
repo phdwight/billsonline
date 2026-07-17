@@ -323,6 +323,15 @@ def archive(bill_id: int):
     return redirect(url_for("home.index"))
 
 
+@bp.post("/<int:bill_id>/unarchive")
+def unarchive(bill_id: int):
+    """POST /months/<id>/unarchive - Unarchive a month."""
+    bill_repo = _get_bill_repo()
+    bill_repo.set_archived(bill_id, False)
+    flash("Month unarchived", "info")
+    return redirect(url_for("months.show", bill_id=bill_id))
+
+
 @bp.get("/archived")
 def archived():
     """GET /months/archived - List archived months."""
@@ -377,7 +386,7 @@ def readings_update(bill_id: int):
             prev_val = float(prev_val_raw) if prev_val_raw not in (None, "") else None
             reading_repo.upsert(bill.id, pid, current_val, prev_val)
 
-    return redirect(url_for("months.show", bill_id=bill.id))
+    return redirect(url_for("months.show", bill_id=bill.id, saved=1))
 
 
 # =============================================================================

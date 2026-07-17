@@ -24,5 +24,5 @@ Feature: Navigation UI
   @ui @navigation
   Scenario: Navigate back from settings
     When I click the "Settings" link
-    And I click the "Back" link
+    And I click the "Home" link
     Then I should be on the home page
