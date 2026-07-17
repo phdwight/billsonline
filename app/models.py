@@ -74,7 +74,8 @@ class BillComponent(db.Model):
     month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False, index=True)
     name = db.Column(db.String(64), nullable=False)
     amount = db.Column(db.Float, nullable=False, default=0.0)
-    # split_method: 'usage' or 'equal'
+    # split_method: see services.bill_calculator.VALID_SPLIT_METHODS
+    # ('usage' | 'equal' | 'percentage' | 'amount')
     split_method = db.Column(db.String(16), nullable=False, default="equal")
     # Optional distribution map for 'percentage' or 'amount' methods: {participant_id: value}
     distribution = db.Column(db.JSON, nullable=True)

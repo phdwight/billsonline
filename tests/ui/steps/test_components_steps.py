@@ -38,6 +38,7 @@ def component_exists(month_detail_page: MonthDetailPage, name: str, amount: floa
 @when(parsers.parse('I add a new component named "{name}"'))
 def add_component_named(month_detail_page: MonthDetailPage, name: str):
     """Start adding a new component."""
+    month_detail_page.open_add_component_form()
     month_detail_page.page.locator("input[name='component_name']").fill(name)
 
 

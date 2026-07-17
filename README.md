@@ -234,7 +234,7 @@ To manage (edit or delete) participants:
 
 ## Tests
 
-The project includes comprehensive test coverage with **270 tests** (86% code coverage) using **BDD-style Gherkin** feature files across all test categories.
+The project includes comprehensive test coverage with **279 tests** (87% code coverage) using **BDD-style Gherkin** feature files across all test categories.
 
 ### Run All Tests
 

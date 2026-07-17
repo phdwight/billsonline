@@ -6,6 +6,11 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 from ..models import MonthlyBill, MeterReading, Participant, BillComponent, ComponentAdjustment
 
+# Canonical set of split methods accepted by BillCalculator. Routes and services
+# must validate against this tuple rather than duplicating the literal list.
+VALID_SPLIT_METHODS: tuple[str, ...] = ('usage', 'equal', 'percentage', 'amount')
+DISTRIBUTION_SPLIT_METHODS: tuple[str, ...] = ('percentage', 'amount')
+
 
 class DynamicContribution(BaseModel):
     """Pydantic model for participant contribution data."""

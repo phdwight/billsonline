@@ -67,6 +67,14 @@ class MonthlyBillRepository:
             .all()
         )
 
+    def list_all_including_archived(self) -> list[MonthlyBill]:
+        """List all bills including archived ones, for reports."""
+        return (
+            MonthlyBill.query
+            .order_by(MonthlyBill.year.desc(), MonthlyBill.month.desc())
+            .all()
+        )
+
     def get_latest(self, archived: bool = False) -> Optional[MonthlyBill]:
         return (
             MonthlyBill.query.filter_by(archived=archived)

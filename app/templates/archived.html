@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card">
   <div class="card-header">
-    <h2 class="section-title">📦 Archived Months</h2>
+    <h2 class="section-title">Archived Months</h2>
     <a href="{{ url_for('home.index') }}" class="btn btn-secondary btn-sm"><svg class="icon icon-left"><use href="#icon-back"/></svg>Back</a>
   </div>
   
@@ -11,7 +11,7 @@
     <li class="month-item archived-item">
       {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
       <a href="{{ url_for('months.show', bill_id=m.id) }}" class="month-link">
-        <span class="month-icon">🔒</span>
+        <svg class="icon"><use href="#icon-lock"/></svg>
         <span class="month-name">{{ m.year }}-{{ month_names[m.month-1] }}</span>
         <span class="badge-archived">Archived</span>
       </a>

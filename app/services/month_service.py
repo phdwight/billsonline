@@ -18,7 +18,7 @@ from ..repositories import (
     ComponentAdjustmentRepository,
     MonthParticipantRepository,
 )
-from .bill_calculator import BillCalculator
+from .bill_calculator import BillCalculator, VALID_SPLIT_METHODS
 
 
 class MonthService:
@@ -298,7 +298,7 @@ class MonthService:
                         bill.id,
                         name=nm,
                         amount=amt,
-                        split_method=sp if sp in ("usage", "equal", "percentage", "amount") else "equal",
+                        split_method=sp if sp in VALID_SPLIT_METHODS else "equal",
                         position=pos,
                         distribution=(dist or None),
                     )

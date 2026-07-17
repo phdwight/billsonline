@@ -16,6 +16,7 @@ from ..repositories import (
     MonthParticipantRepository,
 )
 from ..forms import MonthForm
+from ..services.bill_calculator import VALID_SPLIT_METHODS, DISTRIBUTION_SPLIT_METHODS
 from ..services.month_service import MonthService
 
 bp = Blueprint("months", __name__, url_prefix="/months")
@@ -162,14 +163,14 @@ def create():
         except (ValueError, TypeError):
             amt = 0.0
         sp = (splits[i] if i < len(splits) else 'equal') or 'equal'
-        if sp not in ('usage', 'equal', 'percentage', 'amount'):
+        if sp not in VALID_SPLIT_METHODS:
             sp = 'equal'
         try:
             pos = int((positions[i] if i < len(positions) else i) or i)
         except (ValueError, TypeError):
             pos = i
         distribution = None
-        if sp in ("percentage", "amount"):
+        if sp in DISTRIBUTION_SPLIT_METHODS:
             distribution = _parse_component_distribution(i, participants, request.form)
         try:
             component_repo.add(
@@ -190,11 +191,11 @@ def create():
         elec_dist = None
         water_dist = None
         inet_dist = None
-        if legacy_elec_split in ("percentage", "amount"):
+        if legacy_elec_split in DISTRIBUTION_SPLIT_METHODS:
             elec_dist = _parse_legacy_distribution("electricity", participants, request.form)
-        if legacy_water_split in ("percentage", "amount"):
+        if legacy_water_split in DISTRIBUTION_SPLIT_METHODS:
             water_dist = _parse_legacy_distribution("water", participants, request.form)
-        if legacy_inet_split in ("percentage", "amount"):
+        if legacy_inet_split in DISTRIBUTION_SPLIT_METHODS:
             inet_dist = _parse_legacy_distribution("internet", participants, request.form)
 
         legacy_defs = [
@@ -322,6 +323,15 @@ def archive(bill_id: int):
     return redirect(url_for("home.index"))
 
 
+@bp.post("/<int:bill_id>/unarchive")
+def unarchive(bill_id: int):
+    """POST /months/<id>/unarchive - Unarchive a month."""
+    bill_repo = _get_bill_repo()
+    bill_repo.set_archived(bill_id, False)
+    flash("Month unarchived", "info")
+    return redirect(url_for("months.show", bill_id=bill_id))
+
+
 @bp.get("/archived")
 def archived():
     """GET /months/archived - List archived months."""
@@ -376,7 +386,7 @@ def readings_update(bill_id: int):
             prev_val = float(prev_val_raw) if prev_val_raw not in (None, "") else None
             reading_repo.upsert(bill.id, pid, current_val, prev_val)
 
-    return redirect(url_for("months.show", bill_id=bill.id))
+    return redirect(url_for("months.show", bill_id=bill.id, saved=1))
 
 
 # =============================================================================
