@@ -69,28 +69,28 @@ def database_upload():
 
     try:
         file.save(db_path)
-        
-        # Always apply schema updates directly to the uploaded database
-        # Flask-Migrate doesn't work reliably here due to connection pooling
+
+        # Upgrade the restored file to the current schema. A backup can
+        # predate tables added since it was taken (create_all only runs at
+        # app startup, so without this every query against a newer table
+        # 500s until the next restart). create_all adds missing tables;
+        # known column additions are patched by hand (SQLite can't add
+        # columns via create_all).
         try:
+            db.create_all()
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            # Check if component_adjustments table exists and has notes column
+            # component_adjustments.notes was added after early backups
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='component_adjustments'")
             if cursor.fetchone():
-                # Table exists, check for notes column
                 cursor.execute("PRAGMA table_info(component_adjustments)")
                 columns = [row[1] for row in cursor.fetchall()]
                 if 'notes' not in columns:
                     cursor.execute("ALTER TABLE component_adjustments ADD COLUMN notes VARCHAR(255)")
                     conn.commit()
-                    flash("Database replaced and schema updated successfully!", "success")
-                else:
-                    flash("Database replaced successfully!", "success")
-            else:
-                # Table doesn't exist yet, schema will be created when app uses it
-                flash("Database replaced successfully!", "success")
             conn.close()
+            flash("Database replaced and schema updated successfully!", "success")
         except Exception as sql_err:
             flash(f"Database replaced but schema update failed: {str(sql_err)}. Some features may not work.", "warning")
     except Exception as e:
