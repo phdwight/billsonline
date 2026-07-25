@@ -88,10 +88,14 @@ def test_pdf_contains_all_sections(pdf_client, full_month):
     text = _pdf_text(pdf_client.get(f"/months/{full_month.id}/export.pdf").data)
     # header
     assert "June 2026" in text
-    # consumption
+    # consumption + raw usage cost before adjustments
     assert "Meter Readings" in text
     assert "Alice" in text and "Bob" in text
     assert "200.00" in text  # total usage 50 + 150
+    assert "₱10.00/kWh" in text  # 2000 / 200 kWh
+    assert "Base cost" in text
+    # Alice 50/200 x 2000 = 500, Bob 150/200 x 2000 = 1500 (before adjustments)
+    assert "1,500.00" in text
     # components
     assert "Bill Components" in text
     assert "Electricity" in text and "Internet" in text

@@ -140,8 +140,24 @@ def build_month_pdf(data: Dict[str, Any]) -> bytes:
     story.append(HRFlowable(width=width, thickness=1, color=ACCENT_LIGHT))
 
     # ── meter readings ──
-    story.append(Paragraph("Meter Readings — Electricity Consumption (kWh)", st["h2"]))
-    rows = [["Participant", "Previous", "Current", "Usage (kWh)"]]
+    usage_share_base = data.get("usage_share_base") or {}
+    usage_split_total = float(data.get("usage_split_total") or 0)
+    usage_rate = data.get("usage_rate")
+    show_base = usage_split_total > 0
+
+    title = "Meter Readings — Electricity Consumption (kWh)"
+    if usage_rate:
+        title += f" · {_php(usage_rate)}/kWh"
+    story.append(Paragraph(title, st["h2"]))
+    if show_base:
+        story.append(Paragraph(
+            f"Base cost = usage share of the {_php(usage_split_total)} usage-split bill, "
+            "before any adjustments or redistribution.", st["note"]))
+        story.append(Spacer(1, 3))
+    header = ["Participant", "Previous", "Current", "Usage (kWh)"]
+    if show_base:
+        header.append("Base cost (₱)")
+    rows = [header]
     total_usage = 0.0
     for p in members:
         r = readings_by_pid.get(p.id)
@@ -149,14 +165,24 @@ def build_month_pdf(data: Dict[str, Any]) -> bytes:
         curr = r.reading_current if r else None
         usage = r.usage() if r else 0.0
         total_usage += usage
-        rows.append([
+        row = [
             p.name,
             f"{prev:,.2f}".rstrip("0").rstrip(".") if prev is not None else "—",
             f"{curr:,.2f}".rstrip("0").rstrip(".") if curr is not None else "—",
             f"{usage:,.2f}",
-        ])
-    rows.append(["Total usage", "", "", f"{total_usage:,.2f}"])
-    t = Table(rows, colWidths=[width * 0.34, width * 0.22, width * 0.22, width * 0.22])
+        ]
+        if show_base:
+            row.append(f"{usage_share_base.get(p.id, 0.0):,.2f}")
+        rows.append(row)
+    footer = ["Total usage", "", "", f"{total_usage:,.2f}"]
+    if show_base:
+        footer.append(f"{usage_split_total:,.2f}")
+    rows.append(footer)
+    if show_base:
+        col_widths = [width * 0.28, width * 0.18, width * 0.18, width * 0.18, width * 0.18]
+    else:
+        col_widths = [width * 0.34, width * 0.22, width * 0.22, width * 0.22]
+    t = Table(rows, colWidths=col_widths)
     style = _base_table_style()
     style.add("ALIGN", (1, 0), (-1, -1), "RIGHT")
     style.add("FONTNAME", (0, -1), (-1, -1), "DejaVu-Bold")
