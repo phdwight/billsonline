@@ -173,10 +173,17 @@ def build_month_pdf(data: Dict[str, Any]) -> bytes:
         shares = "—"
         if comp.split_method in ("percentage", "amount") and dist:
             parts = []
+            # Percent shares also show the derived peso amount, normalized the
+            # same way the calculator splits the bill total.
+            total_pct = sum(float(v or 0) for v in dist.values())
             for pid, val in dist.items():
                 pname = name_by_id.get(int(str(pid)), str(pid))
-                parts.append(f"{pname}: {val:,.2f}%" if comp.split_method == "percentage"
-                             else f"{pname}: {_php(float(val))}")
+                val = float(val or 0)
+                if comp.split_method == "percentage":
+                    derived = float(comp.amount or 0) * (val / (total_pct if total_pct > 0 else 100.0))
+                    parts.append(f"{pname}: {val:,.2f}% ({_php(derived)})")
+                else:
+                    parts.append(f"{pname}: {_php(val)}")
             shares = ", ".join(parts)
         rows.append([
             comp.name,
