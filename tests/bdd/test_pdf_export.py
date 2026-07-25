@@ -54,7 +54,10 @@ def full_month(pdf_app):
                          split_method="usage", position=0)
     net = BillComponent(month_id=bill.id, name="Internet", amount=1000.0,
                         split_method="equal", position=1)
-    db.session.add_all([elec, net])
+    water = BillComponent(month_id=bill.id, name="Water", amount=500.0,
+                          split_method="percentage", position=2,
+                          distribution={str(alice.id): 60.0, str(bob.id): 40.0})
+    db.session.add_all([elec, net, water])
     db.session.flush()
     db.session.add(ComponentAdjustment(
         month_id=bill.id, component_id=net.id, participant_id=alice.id, zero=False,
@@ -68,7 +71,9 @@ def full_month(pdf_app):
 def _pdf_text(data: bytes) -> str:
     import io
     from pypdf import PdfReader
-    return "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(data)).pages)
+    raw = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(data)).pages)
+    # Table cells wrap; collapse whitespace so assertions match across breaks
+    return " ".join(raw.split())
 
 
 def test_pdf_downloads_with_filename(pdf_client, full_month):
@@ -90,15 +95,18 @@ def test_pdf_contains_all_sections(pdf_client, full_month):
     # components
     assert "Bill Components" in text
     assert "Electricity" in text and "Internet" in text
-    assert "₱3,000.00" in text  # grand total
+    assert "₱3,500.00" in text  # grand total
+    # percent custom shares show the derived amount (60% of 500 = 300)
+    assert "Alice: 60.00% (₱300.00)" in text
+    assert "Bob: 40.00% (₱200.00)" in text
     # redistribution
     assert "Advanced Redistribution" in text
     assert "Bob covers Alice's internet" in text
     assert "100.00%" in text
-    # final computation: Alice elec 500 (usage 50/200), internet redistributed to Bob
+    # final computation: Alice elec 500 (usage 50/200) + water 300, internet to Bob
     assert "Final Computation" in text
-    assert "₱500.00" in text  # Alice's total
-    assert "₱2,500.00" in text  # Bob's total
+    assert "₱800.00" in text  # Alice's total
+    assert "₱2,700.00" in text  # Bob's total
 
 
 def test_pdf_omits_redistribution_without_entries(pdf_client, full_month):
