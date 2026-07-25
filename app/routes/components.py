@@ -1,15 +1,18 @@
 """Components routes - single responsibility: component CRUD operations."""
 from __future__ import annotations
 
-from flask import Blueprint, request, redirect, url_for, flash
+from flask import Blueprint, Response, abort, request, redirect, url_for, flash
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
+from ..models import BillComponent
 from ..repositories import (
     MonthlyBillRepository,
     BillComponentRepository,
+    ComponentImageRepository,
 )
 from ..services.bill_calculator import VALID_SPLIT_METHODS
+from ..services.image_service import ImageError, compress_image
 from ..services.month_service import MonthService
 
 bp = Blueprint("components", __name__, url_prefix="/months/<int:bill_id>/components")
@@ -175,3 +178,86 @@ def convert_legacy(bill_id: int):
         flash(message, "error")
 
     return redirect(url_for("months.show", bill_id=bill_id))
+
+
+# =============================================================================
+# COMPONENT BILL PHOTOS
+# =============================================================================
+
+def _get_image_repo() -> ComponentImageRepository:
+    """Factory function for dependency injection."""
+    return ComponentImageRepository()
+
+
+def _component_in_month(bill_id: int, component_id: int):
+    """Return (bill, component) or None when either is missing/mismatched."""
+    bill = _get_bill_repo().get_by_id(bill_id)
+    if not bill:
+        return None
+    component = db.session.get(BillComponent, component_id)
+    if not component or component.month_id != bill.id:
+        return None
+    return bill, component
+
+
+@bp.post("/<int:component_id>/image")
+def image_upload(bill_id: int, component_id: int):
+    """POST /months/<id>/components/<cid>/image - Attach/replace a bill photo."""
+    found = _component_in_month(bill_id, component_id)
+    if not found:
+        flash("Component not found", "error")
+        return redirect(url_for("home.index"))
+    bill, component = found
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    file = request.files.get("photo")
+    if file is None or not file.filename:
+        flash("Choose an image to upload", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    try:
+        data, width, height = compress_image(file.read())
+    except ImageError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    _get_image_repo().upsert(component.id, data, "image/jpeg", width, height)
+    flash(f"Photo attached to {component.name}", "info")
+    return redirect(url_for("months.show", bill_id=bill.id))
+
+
+@bp.get("/<int:component_id>/image")
+def image_view(bill_id: int, component_id: int):
+    """GET /months/<id>/components/<cid>/image - Serve the stored bill photo."""
+    found = _component_in_month(bill_id, component_id)
+    if not found:
+        abort(404)
+    img = _get_image_repo().get_for_component(component_id)
+    if img is None:
+        abort(404)
+    return Response(
+        img.data,
+        mimetype=img.mime,
+        headers={
+            "Content-Length": str(img.size_bytes),
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
+@bp.post("/<int:component_id>/image/delete")
+def image_delete(bill_id: int, component_id: int):
+    """POST /months/<id>/components/<cid>/image/delete - Remove the bill photo."""
+    found = _component_in_month(bill_id, component_id)
+    if not found:
+        flash("Component not found", "error")
+        return redirect(url_for("home.index"))
+    bill, component = found
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+    if _get_image_repo().delete_for_component(component.id):
+        flash(f"Photo removed from {component.name}", "info")
+    return redirect(url_for("months.show", bill_id=bill.id))

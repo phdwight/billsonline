@@ -342,6 +342,27 @@ def archived():
     return render_template("archived.html", pagination=pagination, months=pagination.items)
 
 
+@bp.get("/<int:bill_id>/export.pdf")
+def export_pdf(bill_id: int):
+    """GET /months/<id>/export.pdf - Printable month summary PDF."""
+    from ..services.pdf_service import MONTH_NAMES, build_month_pdf
+
+    month_service = _get_month_service()
+    data = month_service.get_month_detail_data(bill_id)
+    if not data:
+        flash("Month not found", "error")
+        return redirect(url_for("home.index"))
+
+    bill = data["bill"]
+    pdf = build_month_pdf(data)
+    filename = f"bill_{bill.year}-{MONTH_NAMES[bill.month - 1]}.pdf"
+    return Response(
+        pdf,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @bp.get("/<int:bill_id>/export.csv")
 def export(bill_id: int):
     """GET /months/<id>/export.csv - Export month as CSV."""

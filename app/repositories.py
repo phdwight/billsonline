@@ -5,7 +5,7 @@ from typing import Optional
 from .extensions import db
 from .models import (
     Participant, MonthlyBill, MeterReading,
-    BillComponent, ComponentAdjustment, MonthParticipant
+    BillComponent, ComponentAdjustment, ComponentImage, MonthParticipant
 )
 
 
@@ -270,3 +270,47 @@ class ComponentAdjustmentRepository:
     def clear_for_month(self, month_id: int) -> None:
         ComponentAdjustment.query.filter_by(month_id=month_id).delete()
         db.session.commit()
+
+
+class ComponentImageRepository:
+    def get_for_component(self, component_id: int) -> Optional[ComponentImage]:
+        return ComponentImage.query.filter_by(component_id=component_id).first()
+
+    def upsert(
+        self,
+        component_id: int,
+        data: bytes,
+        mime: str,
+        width: int,
+        height: int,
+    ) -> ComponentImage:
+        img = self.get_for_component(component_id)
+        if img is None:
+            img = ComponentImage(component_id=component_id)
+            db.session.add(img)
+        img.data = data
+        img.mime = mime
+        img.width = width
+        img.height = height
+        img.size_bytes = len(data)
+        db.session.commit()
+        return img
+
+    def delete_for_component(self, component_id: int) -> bool:
+        img = self.get_for_component(component_id)
+        if img is None:
+            return False
+        db.session.delete(img)
+        db.session.commit()
+        return True
+
+    def component_ids_with_image(self, component_ids: list[int]) -> set[int]:
+        """Which of the given components have a stored image (no blob loading)."""
+        if not component_ids:
+            return set()
+        rows = (
+            db.session.query(ComponentImage.component_id)
+            .filter(ComponentImage.component_id.in_(component_ids))
+            .all()
+        )
+        return {r[0] for r in rows}

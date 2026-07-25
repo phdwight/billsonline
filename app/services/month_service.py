@@ -16,6 +16,7 @@ from ..repositories import (
     MeterReadingRepository,
     BillComponentRepository,
     ComponentAdjustmentRepository,
+    ComponentImageRepository,
     MonthParticipantRepository,
 )
 from .bill_calculator import BillCalculator, VALID_SPLIT_METHODS
@@ -108,9 +109,14 @@ class MonthService:
                 component_adjustments=comp_adjs,
             )
 
+        component_image_ids = ComponentImageRepository().component_ids_with_image(
+            [c.id for c in components]
+        )
+
         return {
             'bill': bill,
             'participants': participants,
+            'component_image_ids': component_image_ids,
             'member_ids': member_ids,
             'readings': readings,
             'readings_by_pid': readings_by_pid,

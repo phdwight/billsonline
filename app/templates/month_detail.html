@@ -36,6 +36,10 @@
     <svg width="15" height="15"><use href="#icon-csv"/></svg>
     Export CSV
   </a>
+  <a class="btn btn-secondary" href="{{ url_for('months.export_pdf', bill_id=bill.id) }}">
+    <svg width="15" height="15"><use href="#icon-csv"/></svg>
+    Export PDF
+  </a>
   {% if bill.archived %}
   <form method="post" action="{{ url_for('months.unarchive', bill_id=bill.id) }}" style="display:inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -237,6 +241,32 @@
         </div>
         <div class="cell-total">₱{{ '{:,.2f}'.format(comp.amount|float) }}</div>
       </div>
+      {% set has_photo = comp.id in component_image_ids %}
+      <div class="photo-row">
+        <span class="mini-label">Bill photo</span>
+        {% if has_photo %}
+        <a class="photo-thumb" href="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" target="_blank" rel="noopener" title="Open full size">
+          <img src="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" alt="{{ comp.name }} bill photo">
+        </a>
+        {% endif %}
+        {% if not bill.archived %}
+        <form method="post" action="{{ url_for('components.image_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="btn btn-secondary btn-sm photo-upload-label">
+            <input type="file" name="photo" accept="image/*" data-photo-input hidden>
+            {{ 'Replace photo' if has_photo else 'Add photo' }}
+          </label>
+        </form>
+        {% if has_photo %}
+        <form method="post" action="{{ url_for('components.image_delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline" onsubmit="return confirm('Remove the photo from {{ comp.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+        </form>
+        {% endif %}
+        {% elif not has_photo %}
+        <span class="text-muted" style="font-size:12px">None</span>
+        {% endif %}
+      </div>
       {% else %}
       <form method="post" action="{{ url_for('components.update', bill_id=bill.id, component_id=comp.id) }}" class="stack" data-component-form>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -285,6 +315,32 @@
           <button class="btn btn-ghost btn-sm" type="submit" form="delete-comp-{{ comp.id }}" onclick="return confirm('Delete component {{ comp.name }}?')">Delete component</button>
         </div>
       </form>
+      {% set has_photo = comp.id in component_image_ids %}
+      <div class="photo-row">
+        <span class="mini-label">Bill photo</span>
+        {% if has_photo %}
+        <a class="photo-thumb" href="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" target="_blank" rel="noopener" title="Open full size">
+          <img src="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" alt="{{ comp.name }} bill photo">
+        </a>
+        {% endif %}
+        {% if not bill.archived %}
+        <form method="post" action="{{ url_for('components.image_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="btn btn-secondary btn-sm photo-upload-label">
+            <input type="file" name="photo" accept="image/*" data-photo-input hidden>
+            {{ 'Replace photo' if has_photo else 'Add photo' }}
+          </label>
+        </form>
+        {% if has_photo %}
+        <form method="post" action="{{ url_for('components.image_delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline" onsubmit="return confirm('Remove the photo from {{ comp.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+        </form>
+        {% endif %}
+        {% elif not has_photo %}
+        <span class="text-muted" style="font-size:12px">None</span>
+        {% endif %}
+      </div>
       <form id="delete-comp-{{ comp.id }}" method="post" action="{{ url_for('components.delete', bill_id=bill.id, component_id=comp.id) }}" hidden>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       </form>
@@ -292,6 +348,54 @@
     </div>
     {% endfor %}
   </div>
+
+  {% if bill.archived %}
+  {# Read-only summary of redistribution rules that actually have entries #}
+  {% set redis_entries = [] %}
+  {% for comp in components %}
+    {% for p in members %}
+      {% set adj = (comp_adjustments.get(comp.id) or {}).get(p.id) or {} %}
+      {% set rule = adj.get('rule') or {} %}
+      {% if rule.get('mode') %}
+        {% set _ = redis_entries.append((comp, p, rule, adj)) %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if redis_entries %}
+  <div class="adjust-custom">
+    <h5 style="margin:0">Advanced redistribution</h5>
+    <div class="table-scroll">
+      <table class="table">
+        <thead><tr><th>Component</th><th>Participant</th><th>Mode</th><th>Redistributed to</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for comp, p, rule, adj in redis_entries %}
+          <tr>
+            <td class="cell-name">{{ comp.name }}</td>
+            <td>{{ p.name }}</td>
+            <td><span class="tag tag-outline">{{ rule.get('mode')|capitalize }}</span></td>
+            <td>
+              {% set targets = rule.get('targets') or {} %}
+              {% set base = (dynamic_base_maps.get(comp.id) or {}).get(p.id, 0) %}
+              {% set parts = [] %}
+              {% for tpid, val in targets.items() %}
+                {% set tname = participant_name_by_id.get((tpid|string)|int) or tpid %}
+                {% if rule.get('mode') == 'percent' %}
+                  {% set _ = parts.append(tname ~ ': ' ~ ('%.2f'|format(val|float)) ~ '% (₱' ~ ('{:,.2f}'.format(base * (val|float) / 100)) ~ ')') %}
+                {% else %}
+                  {% set _ = parts.append(tname ~ ': ₱' ~ ('{:,.2f}'.format(val|float))) %}
+                {% endif %}
+              {% endfor %}
+              {{ parts|join(', ') if parts else '—' }}
+            </td>
+            <td class="text-muted">{{ adj.get('notes') or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
 
   {% if not bill.archived %}
   <details class="redis-details">
