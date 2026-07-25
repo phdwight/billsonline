@@ -82,6 +82,8 @@ def test_pdf_downloads_with_filename(pdf_client, full_month):
     assert resp.mimetype == "application/pdf"
     assert resp.data.startswith(b"%PDF")
     assert "bill_2026-June.pdf" in resp.headers["Content-Disposition"]
+    # Cloudflare caches .pdf/.csv by extension unless told not to
+    assert resp.headers["Cache-Control"] == "no-store"
 
 
 def test_pdf_contains_all_sections(pdf_client, full_month):
