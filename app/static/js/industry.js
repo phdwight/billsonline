@@ -42,20 +42,29 @@
     }
   }
 
-  /* ── Meter readings: mirroring + live usage ──────────────────────── */
+  /* ── Meter readings: mirroring + live usage + base cost ──────────── */
   function initReadings() {
     var named = document.querySelectorAll('input[data-reading]');
     if (!named.length) return;
 
+    var form = document.getElementById('readings-form');
+    var usageAmount = form ? parseFloat(form.getAttribute('data-usage-amount')) || 0 : 0;
+
     var byKey = {};
-    named.forEach(function (inp) { byKey[inp.getAttribute('data-reading')] = inp; });
+    var pids = [];
+    named.forEach(function (inp) {
+      var key = inp.getAttribute('data-reading');
+      byKey[key] = inp;
+      var pid = key.split('-').slice(1).join('-');
+      if (pids.indexOf(pid) === -1) pids.push(pid);
+    });
 
     document.querySelectorAll('input[data-mirror]').forEach(function (mirror) {
       var source = byKey[mirror.getAttribute('data-mirror')];
       if (!source) return;
       mirror.addEventListener('input', function () {
         source.value = mirror.value;
-        recompute(source);
+        recompute();
       });
       source.addEventListener('input', function () {
         mirror.value = source.value;
@@ -63,18 +72,36 @@
     });
 
     named.forEach(function (inp) {
-      inp.addEventListener('input', function () { recompute(inp); });
+      inp.addEventListener('input', recompute);
     });
 
-    function recompute(inp) {
-      var key = inp.getAttribute('data-reading');
-      var pid = key.split('-').slice(1).join('-');
+    function usageOf(pid) {
       var prev = byKey['prev-' + pid];
       var curr = byKey['curr-' + pid];
-      var usage = Math.max(0, (parseFloat(curr && curr.value) || 0) - (parseFloat(prev && prev.value) || 0));
-      document.querySelectorAll('[data-usage-for="' + pid + '"]').forEach(function (el) {
-        el.textContent = num(usage);
+      return Math.max(0, (parseFloat(curr && curr.value) || 0) - (parseFloat(prev && prev.value) || 0));
+    }
+
+    function recompute() {
+      var total = 0;
+      var usages = {};
+      pids.forEach(function (pid) {
+        usages[pid] = usageOf(pid);
+        total += usages[pid];
       });
+      pids.forEach(function (pid) {
+        document.querySelectorAll('[data-usage-for="' + pid + '"]').forEach(function (el) {
+          el.textContent = num(usages[pid]);
+        });
+        // base cost = usage share of the usage-split bill, before adjustments
+        var share = total > 0 ? usageAmount * usages[pid] / total : 0;
+        document.querySelectorAll('[data-usage-share-for="' + pid + '"]').forEach(function (el) {
+          el.textContent = num(share);
+        });
+      });
+      var rateTag = document.getElementById('usage-rate-tag');
+      if (rateTag && usageAmount > 0 && total > 0) {
+        rateTag.textContent = 'kWh · ' + CURRENCY + (usageAmount / total).toFixed(2) + '/kWh';
+      }
     }
   }
 

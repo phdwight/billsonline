@@ -113,6 +113,22 @@ class MonthService:
             [c.id for c in components]
         )
 
+        # Raw usage-based split, before any adjustments/redistribution:
+        # each member's share of the usage-split components (typically
+        # Electricity), plus the effective rate per kWh.
+        member_participants = [p for p in participants if not member_ids or p.id in member_ids]
+        usage_by_pid = {r.participant_id: r.usage() for r in readings}
+        total_usage = sum(usage_by_pid.get(p.id, 0.0) for p in member_participants)
+        usage_split_total = sum(
+            float(c.amount or 0) for c in components if c.split_method == 'usage'
+        )
+        usage_share_base = {
+            p.id: (usage_split_total * (usage_by_pid.get(p.id, 0.0) / total_usage))
+            if total_usage > 0 else 0.0
+            for p in member_participants
+        }
+        usage_rate = (usage_split_total / total_usage) if total_usage > 0 and usage_split_total > 0 else None
+
         return {
             'bill': bill,
             'participants': participants,
@@ -126,6 +142,9 @@ class MonthService:
             'dynamic_contributions': dynamic_contributions,
             'comp_adjustments': comp_adjustments_map,
             'dynamic_base_maps': dynamic_base_maps,
+            'usage_share_base': usage_share_base,
+            'usage_split_total': usage_split_total,
+            'usage_rate': usage_rate,
             'adjustments': {},
             'participant_name_by_id': {p.id: p.name for p in participants},
             'base_electricity_map': {},
