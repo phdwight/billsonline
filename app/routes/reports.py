@@ -176,13 +176,22 @@ def get_report_data():
     # Convert datasets to Chart.js format
     chart_datasets = []
     usage_chart_datasets = []
+    # Validated categorical palette (colorblind-safe on the #f2f2f3 surface).
+    # Colors are assigned per participant in stable id order — never cycled —
+    # so a person keeps their color across ranges and charts; participants
+    # beyond the palette fold to neutral gray.
     colors = [
-        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-        '#FF9F40', '#E7E9ED', '#7CB342', '#5C6BC0', '#26A69A'
+        '#2a78d6', '#eb6834', '#1baf7a', '#eda100',
+        '#e87ba4', '#008300', '#4a3aa7', '#e34948',
     ]
-    
-    for i, (name, data) in enumerate(sorted(datasets.items())):
-        color = colors[i % len(colors)]
+    neutral = '#7a7a7d'
+    color_by_name = {
+        p.name: (colors[i] if i < len(colors) else neutral)
+        for i, p in enumerate(sorted(all_participants, key=lambda p: p.id))
+    }
+
+    for name, data in sorted(datasets.items()):
+        color = color_by_name.get(name, neutral)
         chart_datasets.append({
             'label': name,
             'data': data,
@@ -193,8 +202,8 @@ def get_report_data():
             'tension': 0.1
         })
     
-    for i, (name, data) in enumerate(sorted(usage_datasets.items())):
-        color = colors[i % len(colors)]
+    for name, data in sorted(usage_datasets.items()):
+        color = color_by_name.get(name, neutral)
         usage_chart_datasets.append({
             'label': name,
             'data': data,
