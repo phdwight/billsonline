@@ -359,7 +359,12 @@ def export_pdf(bill_id: int):
     return Response(
         pdf,
         mimetype="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            # .pdf is on Cloudflare's default cache-by-extension list; without
+            # this, edges serve stale exports after the data (or app) changes.
+            "Cache-Control": "no-store",
+        },
     )
 
 
@@ -377,7 +382,11 @@ def export(bill_id: int):
     return Response(
         csv_content,
         mimetype="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            # .csv is also on Cloudflare's default cache-by-extension list
+            "Cache-Control": "no-store",
+        },
     )
 
 
