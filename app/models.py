@@ -89,6 +89,30 @@ class BillComponent(db.Model):
         return f"<BillComponent {self.name} {self.amount} {self.split_method}>"
 
 
+class ComponentImage(db.Model):
+    """Optional photo of the physical bill for a component (stored compressed)."""
+
+    __tablename__ = "component_images"
+    id = db.Column(db.Integer, primary_key=True)
+    component_id = db.Column(
+        db.Integer, db.ForeignKey("bill_components.id"), nullable=False, unique=True, index=True
+    )
+    mime = db.Column(db.String(32), nullable=False, default="image/jpeg")
+    data = db.Column(db.LargeBinary, nullable=False)
+    width = db.Column(db.Integer, nullable=False)
+    height = db.Column(db.Integer, nullable=False)
+    size_bytes = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.Date, default=date.today, nullable=False)
+
+    component = db.relationship(
+        "BillComponent",
+        backref=db.backref("image", uselist=False, cascade="all, delete-orphan"),
+    )
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<ComponentImage component={self.component_id} {self.size_bytes}B>"
+
+
 class ComponentAdjustment(db.Model):
     __tablename__ = "component_adjustments"
     id = db.Column(db.Integer, primary_key=True)

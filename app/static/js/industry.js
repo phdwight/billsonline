@@ -148,6 +148,21 @@
     });
   }
 
+  /* ── Bill photo: submit on file pick ─────────────────────────────── */
+  function initPhotoUploads() {
+    document.querySelectorAll('input[data-photo-input]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        if (!input.files || !input.files.length) return;
+        var label = input.closest('label');
+        if (label) {
+          label.classList.add('uploading');
+          label.appendChild(document.createTextNode(' …'));
+        }
+        input.form.submit();
+      });
+    });
+  }
+
   /* ── Transient save confirmation ─────────────────────────────────── */
   function initSaveConfirm() {
     var confirmEl = document.getElementById('save-confirm');
@@ -168,6 +183,7 @@
     initReadings();
     initEditAmounts();
     initAdjustBlocks();
+    initPhotoUploads();
     initSaveConfirm();
   });
 })();

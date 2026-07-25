@@ -16,8 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create non-root user for security
+# Create non-root user for security; pre-create the instance dir so a fresh
+# volume mounted there is writable by appuser
 RUN useradd --create-home --shell /bin/bash appuser && \
+    mkdir -p /app/instance && \
     chown -R appuser:appuser /app
 USER appuser
 
