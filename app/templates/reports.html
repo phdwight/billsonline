@@ -5,7 +5,7 @@
 
 <section class="card">
   <h2>Contribution Trends</h2>
-  <p class="help-text">Select a date range to view participant contribution totals over time.</p>
+  <p class="help-text">Select a date range to view each participant's share of contributions and electricity usage.</p>
   
   <form id="report-form" class="report-form">
     <div class="form-row">
@@ -41,7 +41,7 @@
 </section>
 
 <section class="card chart-section" id="chart-section" style="display: none;">
-  <h2>Participant Contributions Over Time</h2>
+  <h2>Participant Contribution Share</h2>
   <div class="chart-container">
     <canvas id="contributions-chart"></canvas>
   </div>
@@ -165,32 +165,45 @@ document.addEventListener('DOMContentLoaded', function() {
         chart.destroy();
       }
       
-      // Create new chart
+      // Pie: each participant's share of the total contributions in range.
+      // Slices sorted largest-first; slice color = the participant's stable
+      // series color; 2px surface-colored gaps separate slices.
+      const shares = data.datasets
+        .map(ds => ({
+          label: ds.label,
+          color: ds.borderColor,
+          total: ds.data.reduce((a, b) => a + b, 0),
+        }))
+        .filter(s => s.total > 0)
+        .sort((a, b) => b.total - a.total);
+      const shareSum = shares.reduce((a, s) => a + s.total, 0);
+
       const ctx = document.getElementById('contributions-chart').getContext('2d');
       chart = new Chart(ctx, {
-        type: 'line',
+        type: 'pie',
         data: {
-          labels: data.labels,
-          datasets: data.datasets
+          labels: shares.map(s => s.label),
+          datasets: [{
+            data: shares.map(s => +s.total.toFixed(2)),
+            backgroundColor: shares.map(s => s.color),
+            borderColor: '#f2f2f3',
+            borderWidth: 2,
+          }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: {
-            intersect: false,
-            mode: 'index'
-          },
           plugins: {
             legend: {
-              position: 'top',
+              position: 'right',
               labels: {
                 usePointStyle: true,
-                padding: 20
+                padding: 16
               }
             },
             title: {
               display: true,
-              text: 'Monthly Contributions by Participant',
+              text: 'Share of Total Contributions (selected range)',
               font: {
                 size: 16
               }
@@ -198,28 +211,9 @@ document.addEventListener('DOMContentLoaded', function() {
             tooltip: {
               callbacks: {
                 label: function(context) {
-                  return `${context.dataset.label}: ₱${context.parsed.y.toFixed(2)}`;
+                  const pct = shareSum ? (context.parsed / shareSum * 100).toFixed(1) : '0.0';
+                  return `${context.label}: ₱${context.parsed.toFixed(2)} (${pct}%)`;
                 }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Amount (₱)'
-              },
-              ticks: {
-                callback: function(value) {
-                  return '₱' + value.toFixed(0);
-                }
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Month'
               }
             }
           }
@@ -322,28 +316,28 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    let html = '<h3>Summary</h3><table class="summary-table"><thead><tr><th>Participant</th><th>Total</th><th>Average</th><th>Min</th><th>Max</th></tr></thead><tbody>';
+    let html = '<h3>Summary</h3><table class="summary-table"><thead><tr><th>Participant</th><th>Total</th><th>Share</th><th>Average</th><th>Min</th><th>Max</th></tr></thead><tbody>';
     
-    let grandTotal = 0;
+    const grandTotal = data.datasets.reduce((sum, ds) => sum + ds.data.reduce((a, b) => a + b, 0), 0);
     
     for (const ds of data.datasets) {
       const total = ds.data.reduce((a, b) => a + b, 0);
       const avg = ds.data.length ? total / ds.data.length : 0;
       const min = ds.data.length ? Math.min(...ds.data) : 0;
       const max = ds.data.length ? Math.max(...ds.data) : 0;
-      
-      grandTotal += total;
+      const share = grandTotal ? (total / grandTotal * 100).toFixed(1) : '0.0';
       
       html += `<tr>
         <td><span class="color-dot" style="background-color: ${ds.borderColor}"></span>${ds.label}</td>
         <td>₱${total.toFixed(2)}</td>
+        <td>${share}%</td>
         <td>₱${avg.toFixed(2)}</td>
         <td>₱${min.toFixed(2)}</td>
         <td>₱${max.toFixed(2)}</td>
       </tr>`;
     }
     
-    html += `</tbody><tfoot><tr><td><strong>Grand Total</strong></td><td><strong>₱${grandTotal.toFixed(2)}</strong></td><td colspan="3"></td></tr></tfoot></table>`;
+    html += `</tbody><tfoot><tr><td><strong>Grand Total</strong></td><td><strong>₱${grandTotal.toFixed(2)}</strong></td><td colspan="4"></td></tr></tfoot></table>`;
     
     chartSummary.innerHTML = html;
   }
