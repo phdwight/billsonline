@@ -30,6 +30,8 @@ htmlcov/
 
 # Docker
 Dockerfile
+compose.yaml
+compose.yml
 docker-compose*.yml
 .docker/
 .dockerignore
