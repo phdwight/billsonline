@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest==9.0.2
+pytest-bdd==8.1.0
+pytest-cov==7.0.0
+pytest-playwright==0.7.2
+playwright==1.57.0
+pypdf==6.14.2
+python-dotenv==1.2.1

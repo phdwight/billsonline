@@ -42,12 +42,20 @@ docs/
 # CI/CD
 .github/
 
-# Local development
+# Local development — billsonline.db* also catches .db.backup_* files,
+# which the bare *.db glob misses
 *.db
+*.db.*
+billsonline.db*
 *.sqlite
 instance/
 .env
 .env.*
+.DS_Store
+*.zip
+.claude/
+pytest.ini
+requirements-dev.txt
 
 # Scripts
 scripts/
