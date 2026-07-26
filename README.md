@@ -1,8 +1,8 @@
 # Bills Online
 
 [![Docker Build](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml/badge.svg)](https://github.com/phdwight/billsonline/actions/workflows/docker-build.yml)
-[![Test Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](tests/)
-[![Tests](https://img.shields.io/badge/tests-290%20passing-brightgreen)](tests/)
+[![Test Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-296%20passing-brightgreen)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -32,7 +32,7 @@ Individual line items within a monthly bill. Each component has:
 - **Name**: e.g., "Electricity", "Water", "Internet", "Rent"
 - **Amount**: The total cost
 - **Split Method**: How to divide the cost among participants
-- **Bill photo** (optional): a snapshot of the physical bill, stored compressed
+- **Bill photos** (optional): up to two snapshots of the physical bill, stored compressed
 
 ### Split Methods
 - **Equal**: Everyone pays the same amount (total ÷ number of participants)
@@ -44,7 +44,7 @@ Individual line items within a monthly bill. Each component has:
 For usage-based bills like electricity, enter each person's meter readings:
 - **Previous Reading**: Where the meter was at the start of the period (pre-filled from last month)
 - **Current Reading**: Where the meter is now
-- **Usage** = Current − Previous (calculated live as you type)
+- **Usage** = (Current − Previous) ÷ 10 — the meters register tenths of a kWh (calculated live as you type)
 - **Base cost** = each person's usage share of the usage-split bill, shown alongside the effective ₱/kWh rate — the raw computation *before* any adjustments
 
 ### Adjustments & Redistribution
@@ -57,18 +57,19 @@ When someone shouldn't pay (part of) a component — e.g., they were away — a 
 ### Bill Management
 - **Billing period cards**: Home lists all months with grand total, participant count, and Active/Archived status
 - **Archive / Unarchive**: Archived months become read-only but remain fully viewable and exportable
-- **PDF Export**: A printable one-page month summary — meter consumption with base costs and ₱/kWh rate, components with custom shares, redistribution rules with derived amounts, and the final per-participant computation
+- **PDF Export**: A printable month summary — meter consumption with base costs and ₱/kWh rate, components with custom shares, redistribution rules with derived amounts, the final per-participant computation, and all attached photos in a captioned appendix
 
 ### Dynamic Bill Components
 - **Custom Components**: Any number of components (Electricity, Water, Internet, Rent, Gas, …)
 - **Four split methods** with live sum validation for custom amounts/percentages (✓ when balanced, red when not) and derived peso amounts beside percentage inputs
-- **Bill photos**: Attach an optional photo per component. Uploads are EXIF-rotated upright, stripped of metadata, downscaled to 1600 px, and re-encoded as JPEG (a typical phone photo stores at ~100–300 KB). Stored in the database, so backups include them.
+- **Bill photos**: Attach up to two optional photos per component. Uploads are EXIF-rotated upright, stripped of metadata, downscaled to 1600 px, and re-encoded as JPEG (a typical phone photo stores at ~100–300 KB). Stored in the database, so backups include them.
 - **Positioning**: Manual position control determines column order everywhere
 
 ### Meter Readings
 - **Grid and Ledger layouts**: A table view or per-participant cards, switchable per preference (persisted locally)
 - **Live recalculation**: Usage, base costs, and the ₱/kWh rate update as you type
 - **Pre-fill Support**: Previous readings pre-filled from the prior month
+- **Meter photo**: One optional photo of the meter per month (add/replace/remove)
 
 ### Adjustments & Redistribution
 - **Custom Redistribution**: Shift a participant's component share to others by percentage or fixed amounts
@@ -78,6 +79,7 @@ When someone shouldn't pay (part of) a component — e.g., they were away — a 
 
 ### Reports
 - **Participant Contribution Share**: Pie chart of each participant's share of total contributions over a selectable month range, with a summary table (total, share %, average, min, max)
+- **Total Consumption Trend**: Total monthly kWh and the effective cost per kWh on one chart (separate axes)
 - **Electricity Consumption**: Stacked monthly kWh bars per participant with a usage summary table
 - **Stable, colorblind-safe colors**: Each participant keeps the same color across charts and ranges
 
@@ -88,7 +90,7 @@ When someone shouldn't pay (part of) a component — e.g., they were away — a 
 
 ### Settings & Backup
 - **Database Backup**: Download a timestamped copy of the SQLite database (photos included)
-- **Database Restore**: Upload a backup; its schema is automatically upgraded to the current version on the spot
+- **Database Restore**: Upload a backup; its schema (and any legacy photo storage) is automatically upgraded on the spot
 - **Version Display**: Application version shown in the footer
 
 ### User Interface
@@ -208,7 +210,7 @@ Open **Reports** to pick a From/To month range. The contribution pie shows each 
 
 ## Tests
 
-The project includes **290 tests** (~89% code coverage): 271 backend tests (most BDD-style with Gherkin feature files) plus 19 Playwright browser tests.
+The project includes **296 tests** (~88% code coverage): 277 backend tests (most BDD-style with Gherkin feature files) plus 19 Playwright browser tests.
 
 ### Run All Tests
 
@@ -330,7 +332,7 @@ billsonline/
 │   ├── templates/           # Jinja2 templates
 │   └── static/              # CSS (Industry design system), JS, bundled fonts
 ├── tests/
-│   ├── bdd/                 # Backend tests (271)
+│   ├── bdd/                 # Backend tests (277)
 │   ├── features/            # Gherkin feature files (16)
 │   └── ui/                  # Playwright UI tests (19)
 ├── migrations/              # Alembic database migrations
