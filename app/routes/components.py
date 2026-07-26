@@ -9,7 +9,7 @@ from ..models import BillComponent
 from ..repositories import (
     MonthlyBillRepository,
     BillComponentRepository,
-    ComponentImageRepository,
+    PhotoRepository,
 )
 from ..services.bill_calculator import VALID_SPLIT_METHODS
 from ..services.image_service import ImageError, compress_image
@@ -162,6 +162,7 @@ def delete(bill_id: int, component_id: int):
         flash("This month is archived. Unarchive to make changes.", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
     component_repo.delete(component_id)
+    PhotoRepository().delete_for_component(component_id)
     flash("Component deleted", "info")
     return redirect(url_for("months.show", bill_id=bill.id))
 
@@ -181,12 +182,12 @@ def convert_legacy(bill_id: int):
 
 
 # =============================================================================
-# COMPONENT BILL PHOTOS
+# COMPONENT BILL PHOTOS (up to 2 per component, optional)
 # =============================================================================
 
-def _get_image_repo() -> ComponentImageRepository:
+def _get_photo_repo() -> PhotoRepository:
     """Factory function for dependency injection."""
-    return ComponentImageRepository()
+    return PhotoRepository()
 
 
 def _component_in_month(bill_id: int, component_id: int):
@@ -200,9 +201,17 @@ def _component_in_month(bill_id: int, component_id: int):
     return bill, component
 
 
-@bp.post("/<int:component_id>/image")
-def image_upload(bill_id: int, component_id: int):
-    """POST /months/<id>/components/<cid>/image - Attach/replace a bill photo."""
+def _uploaded_photo(files):
+    """First non-empty uploaded file named 'photo' (grid/ledger may both submit one)."""
+    for file in files.getlist("photo"):
+        if file is not None and file.filename:
+            return file
+    return None
+
+
+@bp.post("/<int:component_id>/photos")
+def photo_upload(bill_id: int, component_id: int):
+    """POST /months/<id>/components/<cid>/photos - Attach a bill photo (max 2)."""
     found = _component_in_month(bill_id, component_id)
     if not found:
         flash("Component not found", "error")
@@ -212,8 +221,13 @@ def image_upload(bill_id: int, component_id: int):
         flash("This month is archived. Unarchive to make changes.", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
 
-    file = request.files.get("photo")
-    if file is None or not file.filename:
+    photo_repo = _get_photo_repo()
+    if len(photo_repo.list_for(bill.id, "component", component.id)) >= PhotoRepository.MAX_COMPONENT_PHOTOS:
+        flash(f"{component.name} already has {PhotoRepository.MAX_COMPONENT_PHOTOS} photos. Remove one first.", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    file = _uploaded_photo(request.files)
+    if file is None:
         flash("Choose an image to upload", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
 
@@ -223,33 +237,33 @@ def image_upload(bill_id: int, component_id: int):
         flash(str(exc), "error")
         return redirect(url_for("months.show", bill_id=bill.id))
 
-    _get_image_repo().upsert(component.id, data, "image/jpeg", width, height)
+    photo_repo.add(bill.id, "component", component.id, data, "image/jpeg", width, height)
     flash(f"Photo attached to {component.name}", "info")
     return redirect(url_for("months.show", bill_id=bill.id))
 
 
-@bp.get("/<int:component_id>/image")
-def image_view(bill_id: int, component_id: int):
-    """GET /months/<id>/components/<cid>/image - Serve the stored bill photo."""
+@bp.get("/<int:component_id>/photos/<int:photo_id>")
+def photo_view(bill_id: int, component_id: int, photo_id: int):
+    """GET /months/<id>/components/<cid>/photos/<pid> - Serve a bill photo."""
     found = _component_in_month(bill_id, component_id)
     if not found:
         abort(404)
-    img = _get_image_repo().get_for_component(component_id)
-    if img is None:
+    photo = _get_photo_repo().get(photo_id)
+    if photo is None or photo.kind != "component" or photo.ref_id != component_id:
         abort(404)
     return Response(
-        img.data,
-        mimetype=img.mime,
+        photo.data,
+        mimetype=photo.mime,
         headers={
-            "Content-Length": str(img.size_bytes),
+            "Content-Length": str(photo.size_bytes),
             "Cache-Control": "private, max-age=3600",
         },
     )
 
 
-@bp.post("/<int:component_id>/image/delete")
-def image_delete(bill_id: int, component_id: int):
-    """POST /months/<id>/components/<cid>/image/delete - Remove the bill photo."""
+@bp.post("/<int:component_id>/photos/<int:photo_id>/delete")
+def photo_delete(bill_id: int, component_id: int, photo_id: int):
+    """POST /months/<id>/components/<cid>/photos/<pid>/delete - Remove a bill photo."""
     found = _component_in_month(bill_id, component_id)
     if not found:
         flash("Component not found", "error")
@@ -258,6 +272,8 @@ def image_delete(bill_id: int, component_id: int):
     if bill.archived:
         flash("This month is archived. Unarchive to make changes.", "error")
         return redirect(url_for("months.show", bill_id=bill.id))
-    if _get_image_repo().delete_for_component(component.id):
+    photo = _get_photo_repo().get(photo_id)
+    if photo and photo.kind == "component" and photo.ref_id == component_id:
+        _get_photo_repo().delete(photo_id)
         flash(f"Photo removed from {component.name}", "info")
     return redirect(url_for("months.show", bill_id=bill.id))

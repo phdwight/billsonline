@@ -166,6 +166,32 @@
     </div>
   </form>
   {% endif %}
+
+  <div class="photo-row">
+    <span class="mini-label">Meter photo</span>
+    {% if reading_photo_id %}
+    <a class="photo-thumb" href="{{ url_for('months.reading_photo_view', bill_id=bill.id) }}" target="_blank" rel="noopener" title="Open meter photo">
+      <img src="{{ url_for('months.reading_photo_view', bill_id=bill.id) }}" alt="Meter photo">
+    </a>
+    {% endif %}
+    {% if not bill.archived %}
+    <form method="post" action="{{ url_for('months.reading_photo_upload', bill_id=bill.id) }}" enctype="multipart/form-data" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="btn btn-secondary btn-sm photo-upload-label">
+        <input type="file" name="photo" accept="image/*" data-photo-input hidden>
+        {{ 'Replace photo' if reading_photo_id else 'Add photo' }}
+      </label>
+    </form>
+    {% if reading_photo_id %}
+    <form method="post" action="{{ url_for('months.reading_photo_delete', bill_id=bill.id) }}" style="display:inline" onsubmit="return confirm('Remove the meter photo?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+    </form>
+    {% endif %}
+    {% elif not reading_photo_id %}
+    <span class="text-muted" style="font-size:12px">None</span>
+    {% endif %}
+  </div>
 </section>
 
 <!-- ─── Month Participants ─── -->
@@ -244,29 +270,31 @@
         </div>
         <div class="cell-total">₱{{ '{:,.2f}'.format(comp.amount|float) }}</div>
       </div>
-      {% set has_photo = comp.id in component_image_ids %}
+      {% set comp_photo_ids = component_photos.get(comp.id, []) %}
       <div class="photo-row">
-        <span class="mini-label">Bill photo</span>
-        {% if has_photo %}
-        <a class="photo-thumb" href="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" target="_blank" rel="noopener" title="Open full size">
-          <img src="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" alt="{{ comp.name }} bill photo">
-        </a>
-        {% endif %}
-        {% if not bill.archived %}
-        <form method="post" action="{{ url_for('components.image_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
+        <span class="mini-label">Bill photos</span>
+        {% for ph_id in comp_photo_ids %}
+        <span class="photo-item">
+          <a class="photo-thumb" href="{{ url_for('components.photo_view', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" target="_blank" rel="noopener" title="Open full size">
+            <img src="{{ url_for('components.photo_view', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" alt="{{ comp.name }} bill photo {{ loop.index }}">
+          </a>
+          {% if not bill.archived %}
+          <form method="post" action="{{ url_for('components.photo_delete', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" style="display:inline" onsubmit="return confirm('Remove this photo from {{ comp.name }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+          </form>
+          {% endif %}
+        </span>
+        {% endfor %}
+        {% if not bill.archived and comp_photo_ids|length < 2 %}
+        <form method="post" action="{{ url_for('components.photo_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="btn btn-secondary btn-sm photo-upload-label">
             <input type="file" name="photo" accept="image/*" data-photo-input hidden>
-            {{ 'Replace photo' if has_photo else 'Add photo' }}
+            Add photo
           </label>
         </form>
-        {% if has_photo %}
-        <form method="post" action="{{ url_for('components.image_delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline" onsubmit="return confirm('Remove the photo from {{ comp.name }}?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
-        </form>
-        {% endif %}
-        {% elif not has_photo %}
+        {% elif bill.archived and not comp_photo_ids %}
         <span class="text-muted" style="font-size:12px">None</span>
         {% endif %}
       </div>
@@ -318,29 +346,31 @@
           <button class="btn btn-ghost btn-sm" type="submit" form="delete-comp-{{ comp.id }}" onclick="return confirm('Delete component {{ comp.name }}?')">Delete component</button>
         </div>
       </form>
-      {% set has_photo = comp.id in component_image_ids %}
+      {% set comp_photo_ids = component_photos.get(comp.id, []) %}
       <div class="photo-row">
-        <span class="mini-label">Bill photo</span>
-        {% if has_photo %}
-        <a class="photo-thumb" href="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" target="_blank" rel="noopener" title="Open full size">
-          <img src="{{ url_for('components.image_view', bill_id=bill.id, component_id=comp.id) }}" alt="{{ comp.name }} bill photo">
-        </a>
-        {% endif %}
-        {% if not bill.archived %}
-        <form method="post" action="{{ url_for('components.image_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
+        <span class="mini-label">Bill photos</span>
+        {% for ph_id in comp_photo_ids %}
+        <span class="photo-item">
+          <a class="photo-thumb" href="{{ url_for('components.photo_view', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" target="_blank" rel="noopener" title="Open full size">
+            <img src="{{ url_for('components.photo_view', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" alt="{{ comp.name }} bill photo {{ loop.index }}">
+          </a>
+          {% if not bill.archived %}
+          <form method="post" action="{{ url_for('components.photo_delete', bill_id=bill.id, component_id=comp.id, photo_id=ph_id) }}" style="display:inline" onsubmit="return confirm('Remove this photo from {{ comp.name }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+          </form>
+          {% endif %}
+        </span>
+        {% endfor %}
+        {% if not bill.archived and comp_photo_ids|length < 2 %}
+        <form method="post" action="{{ url_for('components.photo_upload', bill_id=bill.id, component_id=comp.id) }}" enctype="multipart/form-data" style="display:inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label class="btn btn-secondary btn-sm photo-upload-label">
             <input type="file" name="photo" accept="image/*" data-photo-input hidden>
-            {{ 'Replace photo' if has_photo else 'Add photo' }}
+            Add photo
           </label>
         </form>
-        {% if has_photo %}
-        <form method="post" action="{{ url_for('components.image_delete', bill_id=bill.id, component_id=comp.id) }}" style="display:inline" onsubmit="return confirm('Remove the photo from {{ comp.name }}?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
-        </form>
-        {% endif %}
-        {% elif not has_photo %}
+        {% elif bill.archived and not comp_photo_ids %}
         <span class="text-muted" style="font-size:12px">None</span>
         {% endif %}
       </div>

@@ -14,8 +14,8 @@ from ..repositories import (
     MeterReadingRepository,
     BillComponentRepository,
     ComponentAdjustmentRepository,
-    ComponentImageRepository,
     MonthParticipantRepository,
+    PhotoRepository,
 )
 from .bill_calculator import BillCalculator, VALID_SPLIT_METHODS
 
@@ -107,9 +107,10 @@ class MonthService:
                 component_adjustments=comp_adjs,
             )
 
-        component_image_ids = ComponentImageRepository().component_ids_with_image(
-            [c.id for c in components]
-        )
+        photo_repo = PhotoRepository()
+        component_photos = photo_repo.ids_by_ref_for_month(bill.id, 'component')
+        reading_photo = photo_repo.list_for(bill.id, 'reading', 0)
+        reading_photo_id = reading_photo[0].id if reading_photo else None
 
         # Raw usage-based split, before any adjustments/redistribution:
         # each member's share of the usage-split components (typically
@@ -130,7 +131,8 @@ class MonthService:
         return {
             'bill': bill,
             'participants': participants,
-            'component_image_ids': component_image_ids,
+            'component_photos': component_photos,
+            'reading_photo_id': reading_photo_id,
             'member_ids': member_ids,
             'readings': readings,
             'readings_by_pid': readings_by_pid,

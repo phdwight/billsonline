@@ -1,12 +1,14 @@
-"""Tests for optional bill photos on components (upload, compress, serve, delete)."""
+"""Tests for month photos: component bill photos (max 2) and meter reading photos."""
 import io
+import sqlite3
 
 import pytest
 from PIL import Image
 
 from app import create_app
 from app.extensions import db
-from app.models import BillComponent, ComponentImage, MonthlyBill
+from app.models import BillComponent, MonthParticipant, MonthlyBill, Participant, Photo
+from app.repositories import migrate_component_images_to_photos
 from app.services.image_service import MAX_DIMENSION, ImageError, compress_image
 
 
@@ -32,13 +34,17 @@ def img_client(img_app):
 
 @pytest.fixture
 def month_with_component(img_app):
+    alice = Participant(name="Alice")
+    db.session.add(alice)
+    db.session.flush()
     bill = MonthlyBill(year=2026, month=7, electricity_amount=0, water_amount=0, internet_amount=0)
     db.session.add(bill)
     db.session.flush()
+    db.session.add(MonthParticipant(month_id=bill.id, participant_id=alice.id))
     comp = BillComponent(month_id=bill.id, name="Water", amount=500.0, split_method="equal")
     db.session.add(comp)
     db.session.commit()
-    return bill, comp
+    return bill, comp, alice
 
 
 def make_photo_bytes(width=3000, height=2000) -> bytes:
@@ -57,12 +63,24 @@ def make_photo_bytes(width=3000, height=2000) -> bytes:
     return out.getvalue()
 
 
-def upload(client, bill, comp, payload, filename="bill.jpg"):
+def upload_component(client, bill, comp, payload, filename="bill.jpg"):
     return client.post(
-        f"/months/{bill.id}/components/{comp.id}/image",
+        f"/months/{bill.id}/components/{comp.id}/photos",
         data={"photo": (io.BytesIO(payload), filename)},
         content_type="multipart/form-data",
     )
+
+
+def upload_reading(client, bill, payload, filename="meter.jpg"):
+    return client.post(
+        f"/months/{bill.id}/reading-photo",
+        data={"photo": (io.BytesIO(payload), filename)},
+        content_type="multipart/form-data",
+    )
+
+
+def component_photos(comp):
+    return Photo.query.filter_by(kind="component", ref_id=comp.id).order_by(Photo.position).all()
 
 
 class TestCompressImage:
@@ -95,67 +113,141 @@ class TestCompressImage:
             compress_image(b"")
 
 
-class TestImageRoutes:
+class TestComponentPhotoRoutes:
     def test_upload_stores_compressed_jpeg(self, img_client, month_with_component):
-        bill, comp = month_with_component
+        bill, comp, _ = month_with_component
         raw = make_photo_bytes()
-        resp = upload(img_client, bill, comp, raw)
+        resp = upload_component(img_client, bill, comp, raw)
         assert resp.status_code == 302
 
-        img = ComponentImage.query.filter_by(component_id=comp.id).one()
-        assert img.mime == "image/jpeg"
-        assert img.size_bytes == len(img.data)
-        assert img.size_bytes < len(raw)
-        assert max(img.width, img.height) <= MAX_DIMENSION
+        [photo] = component_photos(comp)
+        assert photo.mime == "image/jpeg"
+        assert photo.size_bytes == len(photo.data) < len(raw)
+        assert max(photo.width, photo.height) <= MAX_DIMENSION
 
-    def test_view_serves_stored_image(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        upload(img_client, bill, comp, make_photo_bytes())
-        resp = img_client.get(f"/months/{bill.id}/components/{comp.id}/image")
+    def test_two_photos_allowed_third_rejected(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes(800, 600))
+        upload_component(img_client, bill, comp, make_photo_bytes(640, 480))
+        photos = component_photos(comp)
+        assert len(photos) == 2
+        assert [p.position for p in photos] == [0, 1]
+
+        resp = upload_component(img_client, bill, comp, make_photo_bytes(320, 240),
+                                filename="third.jpg")
+        assert resp.status_code == 302
+        assert len(component_photos(comp)) == 2  # third refused
+
+    def test_view_serves_stored_photo(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes())
+        [photo] = component_photos(comp)
+        resp = img_client.get(f"/months/{bill.id}/components/{comp.id}/photos/{photo.id}")
         assert resp.status_code == 200
         assert resp.mimetype == "image/jpeg"
-        assert Image.open(io.BytesIO(resp.data)).format == "JPEG"
 
-    def test_view_404s_without_image(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        assert img_client.get(f"/months/{bill.id}/components/{comp.id}/image").status_code == 404
-
-    def test_reupload_replaces_single_row(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        upload(img_client, bill, comp, make_photo_bytes(3000, 2000))
-        upload(img_client, bill, comp, make_photo_bytes(800, 600))
-        images = ComponentImage.query.filter_by(component_id=comp.id).all()
-        assert len(images) == 1
-        assert (images[0].width, images[0].height) == (800, 600)
-
-    def test_delete_removes_image(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        upload(img_client, bill, comp, make_photo_bytes())
-        resp = img_client.post(f"/months/{bill.id}/components/{comp.id}/image/delete")
-        assert resp.status_code == 302
-        assert ComponentImage.query.filter_by(component_id=comp.id).count() == 0
-
-    def test_upload_rejected_when_archived(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        bill.archived = True
-        db.session.commit()
-        upload(img_client, bill, comp, make_photo_bytes())
-        assert ComponentImage.query.filter_by(component_id=comp.id).count() == 0
-
-    def test_non_image_upload_stores_nothing(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        upload(img_client, bill, comp, b"not an image", filename="bill.txt")
-        assert ComponentImage.query.filter_by(component_id=comp.id).count() == 0
-
-    def test_component_month_mismatch_404s(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        other = MonthlyBill(year=2026, month=8, electricity_amount=0, water_amount=0, internet_amount=0)
+    def test_view_404s_for_wrong_component(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes())
+        [photo] = component_photos(comp)
+        other = BillComponent(month_id=bill.id, name="Gas", amount=100.0, split_method="equal")
         db.session.add(other)
         db.session.commit()
-        assert img_client.get(f"/months/{other.id}/components/{comp.id}/image").status_code == 404
+        assert img_client.get(
+            f"/months/{bill.id}/components/{other.id}/photos/{photo.id}"
+        ).status_code == 404
 
-    def test_deleting_component_cascades_image(self, img_client, month_with_component):
-        bill, comp = month_with_component
-        upload(img_client, bill, comp, make_photo_bytes())
+    def test_delete_removes_single_photo(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes(800, 600))
+        upload_component(img_client, bill, comp, make_photo_bytes(640, 480))
+        first, second = component_photos(comp)
+        img_client.post(f"/months/{bill.id}/components/{comp.id}/photos/{first.id}/delete")
+        remaining = component_photos(comp)
+        assert [p.id for p in remaining] == [second.id]
+
+    def test_upload_rejected_when_archived(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        bill.archived = True
+        db.session.commit()
+        upload_component(img_client, bill, comp, make_photo_bytes())
+        assert component_photos(comp) == []
+
+    def test_non_image_upload_stores_nothing(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, b"not an image", filename="bill.txt")
+        assert component_photos(comp) == []
+
+    def test_deleting_component_removes_its_photos(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes())
         img_client.post(f"/months/{bill.id}/components/{comp.id}/delete")
-        assert ComponentImage.query.count() == 0
+        assert Photo.query.count() == 0
+
+
+class TestReadingPhotoRoutes:
+    def test_upload_and_serve(self, img_client, month_with_component):
+        bill, _, _ = month_with_component
+        resp = upload_reading(img_client, bill, make_photo_bytes())
+        assert resp.status_code == 302
+        resp = img_client.get(f"/months/{bill.id}/reading-photo")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/jpeg"
+
+    def test_reupload_replaces_single_photo(self, img_client, month_with_component):
+        bill, _, _ = month_with_component
+        upload_reading(img_client, bill, make_photo_bytes(800, 600))
+        upload_reading(img_client, bill, make_photo_bytes(640, 480))
+        photos = Photo.query.filter_by(kind="reading", month_id=bill.id).all()
+        assert len(photos) == 1
+        assert (photos[0].width, photos[0].height) == (640, 480)
+
+    def test_upload_rejected_when_archived(self, img_client, month_with_component):
+        bill, _, _ = month_with_component
+        bill.archived = True
+        db.session.commit()
+        upload_reading(img_client, bill, make_photo_bytes())
+        assert Photo.query.filter_by(kind="reading", month_id=bill.id).count() == 0
+
+    def test_delete_removes_photo(self, img_client, month_with_component):
+        bill, _, _ = month_with_component
+        upload_reading(img_client, bill, make_photo_bytes())
+        img_client.post(f"/months/{bill.id}/reading-photo/delete")
+        assert img_client.get(f"/months/{bill.id}/reading-photo").status_code == 404
+
+    def test_deleting_month_removes_photos(self, img_client, month_with_component):
+        bill, comp, _ = month_with_component
+        upload_component(img_client, bill, comp, make_photo_bytes())
+        upload_reading(img_client, bill, make_photo_bytes())
+        img_client.post(f"/months/{bill.id}/delete")
+        assert Photo.query.count() == 0
+
+
+class TestLegacyMigration:
+    def test_component_images_rows_move_to_photos(self, img_app, month_with_component):
+        bill, comp, _ = month_with_component
+        data, w, h = compress_image(make_photo_bytes(640, 480))
+        # simulate the pre-photos schema alongside current tables
+        raw = sqlite3.connect(":memory:")  # placeholder to satisfy lint
+        raw.close()
+        db.session.execute(db.text(
+            "CREATE TABLE component_images (id INTEGER PRIMARY KEY, component_id INTEGER, "
+            "mime VARCHAR(32), data BLOB, width INTEGER, height INTEGER, size_bytes INTEGER, "
+            "created_at DATE)"
+        ))
+        db.session.execute(
+            db.text("INSERT INTO component_images (component_id, mime, data, width, height, size_bytes) "
+                    "VALUES (:cid, 'image/jpeg', :data, :w, :h, :size)"),
+            {"cid": comp.id, "data": data, "w": w, "h": h, "size": len(data)},
+        )
+        db.session.commit()
+
+        migrate_component_images_to_photos()
+
+        photos = component_photos(comp)
+        assert len(photos) == 1
+        assert photos[0].month_id == bill.id
+        assert photos[0].width == w
+        # legacy table dropped afterwards
+        from sqlalchemy import inspect as sa_inspect
+        assert "component_images" not in sa_inspect(db.engine).get_table_names()

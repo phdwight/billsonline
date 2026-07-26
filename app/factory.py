@@ -17,6 +17,8 @@ def create_app(config_object: type[Config] | None = None) -> Flask:
     with app.app_context():
         from . import models  # noqa: F401 ensure models are registered
         db.create_all()
+        from .repositories import migrate_component_images_to_photos
+        migrate_component_images_to_photos()
 
     # register blueprints (organized by domain following SOLID principles)
     from .routes import register_blueprints

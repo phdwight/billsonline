@@ -5,7 +5,7 @@ from typing import Optional
 from .extensions import db
 from .models import (
     Participant, MonthlyBill, MeterReading,
-    BillComponent, ComponentAdjustment, ComponentImage, MonthParticipant
+    BillComponent, ComponentAdjustment, MonthParticipant, Photo
 )
 
 
@@ -272,45 +272,123 @@ class ComponentAdjustmentRepository:
         db.session.commit()
 
 
-class ComponentImageRepository:
-    def get_for_component(self, component_id: int) -> Optional[ComponentImage]:
-        return ComponentImage.query.filter_by(component_id=component_id).first()
+class PhotoRepository:
+    MAX_COMPONENT_PHOTOS = 2
+    MAX_READING_PHOTOS = 1
 
-    def upsert(
+    def get(self, photo_id: int) -> Optional[Photo]:
+        return db.session.get(Photo, photo_id)
+
+    def list_for(self, month_id: int, kind: str, ref_id: int) -> list[Photo]:
+        return (
+            Photo.query.filter_by(month_id=month_id, kind=kind, ref_id=ref_id)
+            .order_by(Photo.position, Photo.id)
+            .all()
+        )
+
+    def add(
         self,
-        component_id: int,
+        month_id: int,
+        kind: str,
+        ref_id: int,
         data: bytes,
         mime: str,
         width: int,
         height: int,
-    ) -> ComponentImage:
-        img = self.get_for_component(component_id)
-        if img is None:
-            img = ComponentImage(component_id=component_id)
-            db.session.add(img)
-        img.data = data
-        img.mime = mime
-        img.width = width
-        img.height = height
-        img.size_bytes = len(data)
+    ) -> Photo:
+        existing = self.list_for(month_id, kind, ref_id)
+        photo = Photo(
+            month_id=month_id, kind=kind, ref_id=ref_id,
+            position=(existing[-1].position + 1 if existing else 0),
+            data=data, mime=mime, width=width, height=height, size_bytes=len(data),
+        )
+        db.session.add(photo)
         db.session.commit()
-        return img
+        return photo
 
-    def delete_for_component(self, component_id: int) -> bool:
-        img = self.get_for_component(component_id)
-        if img is None:
+    def replace_single(
+        self,
+        month_id: int,
+        kind: str,
+        ref_id: int,
+        data: bytes,
+        mime: str,
+        width: int,
+        height: int,
+    ) -> Photo:
+        """Upsert semantics for single-photo slots (meter reading photos)."""
+        for old in self.list_for(month_id, kind, ref_id):
+            db.session.delete(old)
+        return self.add(month_id, kind, ref_id, data, mime, width, height)
+
+    def delete(self, photo_id: int) -> bool:
+        photo = self.get(photo_id)
+        if photo is None:
             return False
-        db.session.delete(img)
+        db.session.delete(photo)
         db.session.commit()
         return True
 
-    def component_ids_with_image(self, component_ids: list[int]) -> set[int]:
-        """Which of the given components have a stored image (no blob loading)."""
-        if not component_ids:
-            return set()
+    def delete_for(self, month_id: int, kind: str, ref_id: int) -> None:
+        Photo.query.filter_by(month_id=month_id, kind=kind, ref_id=ref_id).delete()
+        db.session.commit()
+
+    def delete_for_component(self, component_id: int) -> None:
+        Photo.query.filter_by(kind=Photo.KIND_COMPONENT, ref_id=component_id).delete()
+        db.session.commit()
+
+    def ids_by_ref_for_month(self, month_id: int, kind: str) -> dict[int, list[int]]:
+        """{ref_id: [photo_id, ...]} for a month/kind, without loading blobs."""
         rows = (
-            db.session.query(ComponentImage.component_id)
-            .filter(ComponentImage.component_id.in_(component_ids))
+            db.session.query(Photo.ref_id, Photo.id)
+            .filter_by(month_id=month_id, kind=kind)
+            .order_by(Photo.position, Photo.id)
             .all()
         )
-        return {r[0] for r in rows}
+        out: dict[int, list[int]] = {}
+        for ref_id, photo_id in rows:
+            out.setdefault(ref_id, []).append(photo_id)
+        return out
+
+    def list_for_month(self, month_id: int) -> list[Photo]:
+        return (
+            Photo.query.filter_by(month_id=month_id)
+            .order_by(Photo.kind, Photo.ref_id, Photo.position, Photo.id)
+            .all()
+        )
+
+
+def migrate_component_images_to_photos() -> None:
+    """One-time copy of the legacy component_images table into photos.
+
+    Runs at startup and after a database restore, so backups taken while
+    the old single-photo table existed keep their photos. Drops the legacy
+    table once copied.
+    """
+    from sqlalchemy import inspect as sa_inspect, text
+
+    try:
+        if "component_images" not in sa_inspect(db.engine).get_table_names():
+            return
+        rows = db.session.execute(text(
+            "SELECT component_id, mime, data, width, height FROM component_images"
+        )).fetchall()
+        for component_id, mime, data, width, height in rows:
+            comp = db.session.get(BillComponent, component_id)
+            if comp is None:
+                continue
+            already = Photo.query.filter_by(
+                kind=Photo.KIND_COMPONENT, ref_id=component_id
+            ).first()
+            if already is not None:
+                continue
+            db.session.add(Photo(
+                month_id=comp.month_id, kind=Photo.KIND_COMPONENT, ref_id=component_id,
+                position=0, mime=mime, data=data, width=width, height=height,
+                size_bytes=len(data),
+            ))
+        db.session.commit()
+        db.session.execute(text("DROP TABLE component_images"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

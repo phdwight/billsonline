@@ -125,3 +125,40 @@ def test_pdf_omits_redistribution_without_entries(pdf_client, full_month):
 def test_pdf_missing_month_redirects(pdf_client):
     resp = pdf_client.get("/months/999/export.pdf")
     assert resp.status_code == 302
+
+
+def test_pdf_includes_attached_photos(pdf_client, full_month):
+    import io as _io
+    import random
+    from PIL import Image as PILImage
+    from pypdf import PdfReader
+
+    from app.models import BillComponent
+
+    def photo_payload(seed, size):
+        rng = random.Random(seed)
+        noise = bytes(rng.getrandbits(8) for _ in range(64 * 64 * 3))
+        img = PILImage.frombytes("RGB", (64, 64), noise).resize(size)
+        buf = _io.BytesIO()
+        img.save(buf, format="JPEG", quality=90)
+        return buf.getvalue()
+
+    comp = BillComponent.query.filter_by(month_id=full_month.id, name="Internet").one()
+    pdf_client.post(
+        f"/months/{full_month.id}/components/{comp.id}/photos",
+        data={"photo": (_io.BytesIO(photo_payload(7, (800, 600))), "bill.jpg")},
+        content_type="multipart/form-data",
+    )
+    pdf_client.post(
+        f"/months/{full_month.id}/reading-photo",
+        data={"photo": (_io.BytesIO(photo_payload(11, (640, 480))), "meter.jpg")},
+        content_type="multipart/form-data",
+    )
+
+    data = pdf_client.get(f"/months/{full_month.id}/export.pdf").data
+    text = _pdf_text(data)
+    assert "Photos" in text
+    assert "Meter reading" in text
+    assert "Internet — bill photo 1" in text
+    embedded = sum(len(page.images) for page in PdfReader(_io.BytesIO(data)).pages)
+    assert embedded >= 2
