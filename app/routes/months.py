@@ -368,28 +368,6 @@ def export_pdf(bill_id: int):
     )
 
 
-@bp.get("/<int:bill_id>/export.csv")
-def export(bill_id: int):
-    """GET /months/<id>/export.csv - Export month as CSV."""
-    month_service = _get_month_service()
-    result = month_service.export_to_csv(bill_id)
-
-    if not result:
-        flash("Month not found", "error")
-        return redirect(url_for("home.index"))
-
-    csv_content, filename = result
-    return Response(
-        csv_content,
-        mimetype="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}",
-            # .csv is also on Cloudflare's default cache-by-extension list
-            "Cache-Control": "no-store",
-        },
-    )
-
-
 # =============================================================================
 # MONTH READINGS
 # =============================================================================

@@ -126,16 +126,6 @@ def confirm_deletion(home_page: HomePage):
     home_page.page.on("dialog", lambda dialog: dialog.accept())
 
 
-@when('I click "Export CSV"')
-def click_export_csv(month_detail_page: MonthDetailPage):
-    """Click the export CSV button."""
-    with month_detail_page.page.expect_download() as download_info:
-        month_detail_page.page.locator("a:has-text('Export CSV')").click()
-    download = download_info.value
-    # Store download for later verification
-    month_detail_page.last_download = download
-
-
 @when('I click the "Edit" button')
 def click_edit_button(month_detail_page: MonthDetailPage):
     """Click the edit button."""
@@ -211,23 +201,6 @@ def month_archived(home_page: HomePage):
     """Verify the month was archived."""
     # Archived months are removed from main list
     pass  # Already verified by "not see" step
-
-
-@then("a CSV file should be downloaded")
-def csv_downloaded(month_detail_page: MonthDetailPage):
-    """Verify a CSV file was downloaded."""
-    assert hasattr(month_detail_page, 'last_download'), "No download occurred"
-    assert month_detail_page.last_download.suggested_filename.endswith('.csv')
-
-
-@then('the CSV file should contain "{text}"')
-def csv_contains(month_detail_page: MonthDetailPage, text: str):
-    """Verify CSV contains specific text."""
-    # Read downloaded file content
-    path = month_detail_page.last_download.path()
-    with open(path, 'r') as f:
-        content = f.read()
-    assert text.lower() in content.lower(), f"'{text}' not found in CSV"
 
 
 @then(parsers.parse('the electricity amount should be "{amount}"'))

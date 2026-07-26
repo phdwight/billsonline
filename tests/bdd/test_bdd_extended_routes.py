@@ -508,23 +508,6 @@ def post_remove_participant_nonexistent(ext_context):
     ext_context['response'] = response
 
 
-@when('I GET the export CSV endpoint')
-def get_export_csv(ext_context):
-    response = ext_context['client'].get(
-        f"/months/{ext_context['bill_id']}/export.csv"
-    )
-    ext_context['response'] = response
-
-
-@when(parsers.parse('I GET export CSV for nonexistent month {bill_id:d}'))
-def get_export_nonexistent(ext_context, bill_id):
-    response = ext_context['client'].get(
-        f"/months/{bill_id}/export.csv",
-        follow_redirects=True
-    )
-    ext_context['response'] = response
-
-
 @when('I POST adjustment form data')
 def post_adjustment_data(ext_context):
     response = ext_context['client'].post(
@@ -622,12 +605,6 @@ def readings_saved(ext_context):
         ).first()
         assert reading is not None
         assert reading.reading_current == 500
-
-
-@then('the response should be a CSV file')
-def response_is_csv(ext_context):
-    assert ext_context['response'].status_code == 200
-    assert 'text/csv' in ext_context['response'].content_type
 
 
 @then('I should be redirected')

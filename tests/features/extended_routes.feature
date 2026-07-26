@@ -94,16 +94,6 @@ Feature: Extended Route Coverage
     When I POST to remove participant from nonexistent month
     Then the page should contain "not found"
 
-  # Export Route
-  Scenario: Export month as CSV
-    Given a bill with data for export exists
-    When I GET the export CSV endpoint
-    Then the response should be a CSV file
-
-  Scenario: Export nonexistent month fails
-    When I GET export CSV for nonexistent month 99999
-    Then I should be redirected
-
   # Adjustments Route
   Scenario: Update adjustments for a month
     Given a bill with components and participants for adjustments

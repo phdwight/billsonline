@@ -295,7 +295,7 @@ def build_month_pdf(data: Dict[str, Any]) -> bytes:
     story.append(HRFlowable(width=width, thickness=0.5, color=HAIRLINE))
     story.append(Paragraph(
         "Amounts in Philippine pesos. Contributions include split methods, custom shares and "
-        "redistribution rules; columns match the CSV export.", st["note"]))
+        "redistribution rules.", st["note"]))
 
     doc.build(story)
     return buf.getvalue()

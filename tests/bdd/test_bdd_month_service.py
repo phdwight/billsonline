@@ -333,31 +333,6 @@ def get_month_detail_existing(ms_context, ms_app):
         ms_context['result'] = service.get_month_detail_data(ms_context['bill_id'])
 
 
-@when(parsers.parse('I export bill ID {bill_id:d} to CSV'))
-def export_nonexistent(ms_context, ms_app, bill_id):
-    with ms_app.app_context():
-        service = MonthService()
-        ms_context['export_result'] = service.export_to_csv(bill_id)
-
-
-@when('I export that bill to CSV')
-def export_existing(ms_context, ms_app):
-    with ms_app.app_context():
-        service = MonthService()
-        result = service.export_to_csv(ms_context['bill_id'])
-        ms_context['export_result'] = result
-        if result:
-            ms_context['export_content'], ms_context['export_filename'] = result
-
-
-@when('I synthesize legacy components')
-def synthesize_legacy(ms_context, ms_app):
-    with ms_app.app_context():
-        service = MonthService()
-        bill = MonthlyBill.query.get(ms_context['bill_id'])
-        ms_context['synth_components'] = service._synthesize_legacy_components(bill)
-
-
 @when(parsers.parse('I convert legacy for bill ID {bill_id:d}'))
 def convert_legacy_nonexistent(ms_context, ms_app, bill_id):
     with ms_app.app_context():
@@ -420,31 +395,6 @@ def member_ids_populated(ms_context):
 def dynamic_contributions_computed(ms_context):
     assert ms_context['result'] is not None
     # Dynamic contributions may be None if no components, that's OK
-
-
-@then('the export result should be None')
-def export_is_none(ms_context):
-    assert ms_context['export_result'] is None
-
-
-@then('the export result should contain CSV content')
-def export_has_content(ms_context):
-    assert ms_context['export_result'] is not None
-    content = ms_context['export_result'][0] if isinstance(ms_context['export_result'], tuple) else ms_context['export_result']
-    assert len(content) > 0
-
-
-@then('the filename should match the month')
-def filename_matches(ms_context):
-    assert ms_context['export_filename'] is not None
-    assert 'bill_' in ms_context['export_filename']
-    assert '.csv' in ms_context['export_filename']
-
-
-@then('legacy components should be synthesized')
-def legacy_synthesized(ms_context):
-    # If export succeeded, legacy was synthesized
-    assert ms_context['export_result'] is not None
 
 
 @then(parsers.parse('"{name}" component should be created with amount {amount:f}'))

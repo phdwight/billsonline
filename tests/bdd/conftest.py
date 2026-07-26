@@ -232,7 +232,6 @@ class MockContext:
         self.last_result = None
         self.last_error = None
         self.calculator = MockCalculator()
-        self.csv_output = None
         self.contributions: List[MockContribution] = None
         self.extra: Dict[str, Any] = {}
         self._next_id = 1
