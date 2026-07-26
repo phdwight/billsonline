@@ -199,8 +199,13 @@ class TestComponentPhotoRoutes:
 class TestReadingPhotoRoutes:
     def test_upload_and_serve(self, img_client, month_with_component):
         bill, _, _ = month_with_component
-        resp = upload_reading(img_client, bill, make_photo_bytes())
+        raw = make_photo_bytes(3000, 2000)
+        resp = upload_reading(img_client, bill, raw)
         assert resp.status_code == 302
+        # stored downscaled and recompressed, never the raw upload
+        [photo] = Photo.query.filter_by(kind="reading", month_id=bill.id).all()
+        assert max(photo.width, photo.height) <= MAX_DIMENSION
+        assert photo.size_bytes < len(raw)
         resp = img_client.get(f"/months/{bill.id}/reading-photo")
         assert resp.status_code == 200
         assert resp.mimetype == "image/jpeg"
