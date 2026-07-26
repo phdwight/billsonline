@@ -152,7 +152,7 @@ cd billsonline
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies
+# Install dependencies (add requirements-dev.txt to run the test suite)
 pip install -r requirements.txt
 
 # Run with the Flask development server (schema auto-creates on first start)
@@ -215,6 +215,9 @@ The project includes **296 tests** (~88% code coverage): 277 backend tests (most
 ### Run All Tests
 
 ```bash
+# Test dependencies
+pip install -r requirements-dev.txt
+
 # Backend tests
 pytest --ignore=tests/ui
 
