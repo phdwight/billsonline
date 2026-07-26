@@ -9,6 +9,10 @@ from __future__ import annotations
 import io
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
+
+# iPhones shoot HEIC/HEIF by default; teach Pillow to decode it.
+register_heif_opener()
 
 # Longest side of the stored image, in pixels. Enough to read meter digits
 # and bill line items, far smaller than a raw phone photo.

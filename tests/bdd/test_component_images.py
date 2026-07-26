@@ -104,6 +104,17 @@ class TestCompressImage:
         data, _, _ = compress_image(out.getvalue())
         assert Image.open(io.BytesIO(data)).mode == "RGB"
 
+    def test_accepts_heic(self):
+        import pillow_heif
+
+        img = Image.new("RGB", (1200, 900), (90, 120, 150))
+        out = io.BytesIO()
+        pillow_heif.register_heif_opener()
+        img.save(out, format="HEIF", quality=90)
+        data, width, height = compress_image(out.getvalue())
+        assert (width, height) == (1200, 900)
+        assert Image.open(io.BytesIO(data)).format == "JPEG"
+
     def test_rejects_non_image(self):
         with pytest.raises(ImageError):
             compress_image(b"definitely not an image")
