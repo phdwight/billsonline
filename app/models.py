@@ -48,10 +48,14 @@ class MeterReading(db.Model):
     participant = db.relationship("Participant", back_populates="readings")
     month = db.relationship("MonthlyBill", back_populates="readings")
 
+    # The meters register tenths of a kWh, so the raw reading difference is
+    # divided by 10 to get actual consumption.
+    METER_DIVISOR = 10.0
+
     def usage(self) -> float:
         if self.reading_previous is None:
             return 0.0
-        return max(0.0, self.reading_current - self.reading_previous)
+        return max(0.0, (self.reading_current - self.reading_previous) / self.METER_DIVISOR)
 
 
 class MonthParticipant(db.Model):

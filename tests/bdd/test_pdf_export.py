@@ -93,10 +93,10 @@ def test_pdf_contains_all_sections(pdf_client, full_month):
     # consumption + raw usage cost before adjustments
     assert "Meter Readings" in text
     assert "Alice" in text and "Bob" in text
-    assert "200.00" in text  # total usage 50 + 150
-    assert "₱10.00/kWh" in text  # 2000 / 200 kWh
+    assert "20.00" in text  # total usage 5 + 15 kWh (meter deltas / 10)
+    assert "₱100.00/kWh" in text  # 2000 / 20 kWh
     assert "Base cost" in text
-    # Alice 50/200 x 2000 = 500, Bob 150/200 x 2000 = 1500 (before adjustments)
+    # Alice 5/20 x 2000 = 500, Bob 15/20 x 2000 = 1500 (before adjustments)
     assert "1,500.00" in text
     # components
     assert "Bill Components" in text

@@ -39,9 +39,9 @@ def usage_month(cost_app):
         MonthParticipant(month_id=bill.id, participant_id=alice.id),
         MonthParticipant(month_id=bill.id, participant_id=bob.id),
         MeterReading(month_id=bill.id, participant_id=alice.id,
-                     reading_previous=100, reading_current=150),   # 50 kWh
+                     reading_previous=100, reading_current=150),   # 5 kWh (delta / 10)
         MeterReading(month_id=bill.id, participant_id=bob.id,
-                     reading_previous=200, reading_current=350),   # 150 kWh
+                     reading_previous=200, reading_current=350),   # 15 kWh (delta / 10)
         BillComponent(month_id=bill.id, name="Electricity", amount=2000.0,
                       split_method="usage", position=0),
     ])
@@ -52,8 +52,8 @@ def usage_month(cost_app):
 def test_month_page_shows_base_cost_and_rate(cost_client, usage_month):
     html = cost_client.get(f"/months/{usage_month.id}").data.decode()
     assert "Base cost (₱)" in html
-    assert "₱10.00/kWh" in html          # 2000 / 200 kWh
-    assert "1,500.00" in html            # Bob: 150/200 × 2000, before adjustments
+    assert "₱100.00/kWh" in html         # 2000 / 20 kWh
+    assert "1,500.00" in html            # Bob: 15/20 × 2000, before adjustments
     assert 'data-usage-amount="2000' in html
 
 

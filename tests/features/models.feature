@@ -37,7 +37,7 @@ Feature: Database Models
 
     Examples:
       | current | previous | usage |
-      | 150.0   | 100.0    | 50.0  |
+      | 150.0   | 100.0    | 5.0   |
       | 150.0   | null     | 0.0   |
       | 50.0    | 100.0    | 0.0   |
 
