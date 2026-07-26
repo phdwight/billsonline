@@ -394,9 +394,8 @@ docker rm billsonline    # Remove and recreate
 
 GitHub Actions automatically:
 - Runs all tests on PRs to `main` (minimum 80% coverage required) and builds the image without pushing
-- On merge to `main`: builds and pushes multi-arch images (`linux/amd64`, `linux/arm64`) to GitHub Container Registry (`ghcr.io/phdwight/billsonline`)
-- Tags with `latest`, branch name, git SHA, and semantic versions
-- Bumps the patch version after each merge
+- On merge to `main`: bumps the patch version, tags the commit (`vX.Y.Z`), then builds and pushes multi-arch images (`linux/amd64`, `linux/arm64`) to GitHub Container Registry (`ghcr.io/phdwight/billsonline`) — so the UI footer, git tag, and image version tag always match
+- Tags images with `latest`, the version, branch name, and git SHA
 
 ## Contributing
 

@@ -42,8 +42,49 @@ jobs:
         run: |
           pytest --cov=app --cov-report=term-missing --cov-fail-under=80 tests/
 
-  build-and-push:
+  # Bump VERSION and tag it BEFORE the image is built, so the published
+  # image, the git tag, and the UI footer all report the same version
+  # (the old post-build bump left every image one version behind).
+  bump:
     needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      sha: ${{ steps.bump.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version, commit, and tag
+        id: bump
+        run: |
+          VERSION=$(cat VERSION)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bumping version from $VERSION to $NEW_VERSION"
+          echo "$NEW_VERSION" > VERSION
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add VERSION
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
+          git push origin HEAD:main "v$NEW_VERSION"
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    needs: [test, bump]
+    # bump is skipped for PRs and manual tag pushes; build in those cases too
+    if: ${{ !cancelled() && needs.test.result == 'success' && (needs.bump.result == 'success' || needs.bump.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,6 +93,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # On main pushes, build the bumped commit so VERSION matches the tag
+          ref: ${{ needs.bump.outputs.sha || github.ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -79,6 +123,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.bump.outputs.version }},enable=${{ needs.bump.outputs.version != '' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
