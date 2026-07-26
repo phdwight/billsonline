@@ -16,7 +16,7 @@
         <span class="badge-archived">Archived</span>
       </a>
       <div class="month-actions">
-        <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-action" title="Export CSV"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">CSV</span></a>
+        <a href="{{ url_for('months.export_pdf', bill_id=m.id) }}" class="btn btn-action" title="Export PDF"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">PDF</span></a>
       </div>
     </li>
     {% else %}

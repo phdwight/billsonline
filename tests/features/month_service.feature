@@ -29,45 +29,6 @@ Feature: Month Service
     When I get month detail data for that bill
     Then dynamic_contributions should be computed
 
-  # Export to CSV
-  Scenario: Export returns None for nonexistent bill
-    When I export bill ID 99999 to CSV
-    Then the export result should be None
-
-  Scenario: Export returns CSV content for existing bill
-    Given a bill exists with components
-    And participants exist with meter readings
-    When I export that bill to CSV
-    Then the export result should contain CSV content
-    And the filename should match the month
-
-  Scenario: Export synthesizes components for legacy bill
-    Given a legacy bill exists without components
-    When I export that bill to CSV
-    Then the export result should contain CSV content
-    And legacy components should be synthesized
-
-  # Synthesize Legacy Components
-  Scenario: Synthesize creates electricity component
-    Given a legacy bill with electricity amount 100.0
-    When I synthesize legacy components
-    Then "Electricity" component should be created with amount 100.0
-
-  Scenario: Synthesize creates water component
-    Given a legacy bill with water amount 50.0
-    When I synthesize legacy components
-    Then "Water" component should be created with amount 50.0
-
-  Scenario: Synthesize creates internet component
-    Given a legacy bill with internet amount 30.0
-    When I synthesize legacy components
-    Then "Internet" component should be created with amount 30.0
-
-  Scenario: Synthesize skips zero amounts
-    Given a legacy bill with only electricity amount 100.0
-    When I synthesize legacy components
-    Then only 1 component should be created
-
   # Convert Legacy to Components
   Scenario: Convert legacy fails for nonexistent month
     When I convert legacy for bill ID 99999

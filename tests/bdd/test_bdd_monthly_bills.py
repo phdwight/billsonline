@@ -132,54 +132,6 @@ def delete_bill(context, mock_bill_repo):
         mock_bill_repo.delete(bill.id)
 
 
-@when("I export the bill to CSV")
-def export_to_csv(context, mock_component_repo, mock_reading_repo):
-    """Export bill to CSV format."""
-    from io import StringIO
-    import csv
-
-    bill = next(iter(context.bills.values()), None)
-    if not bill:
-        return
-
-    components = mock_component_repo.list_for_month(bill.id)
-    readings = mock_reading_repo.list_for_month(bill.id)
-    participants = list(context.participants.values())
-
-    # Compute contributions
-    contributions = context.calculator.compute_contributions_dynamic(
-        bill=bill,
-        components=components,
-        readings=readings,
-        participants=participants,
-        component_adjustments=[],
-    )
-
-    # Generate CSV
-    si = StringIO()
-    writer = csv.writer(si)
-
-    comp_names = [c.name for c in components]
-    writer.writerow(["Participant", *comp_names, "Total"])
-
-    for c in contributions:
-        row = [c.participant.name]
-        total = 0.0
-        for name in comp_names:
-            val = round(float(c.components.get(name, 0.0)), 2)
-            row.append(f"{val:.2f}")
-            total += val
-        row.append(f"{total:.2f}")
-        writer.writerow(row)
-
-    # Totals row
-    comp_totals = [float(c.amount) for c in components]
-    grand_total = sum(comp_totals)
-    writer.writerow(["Totals", *[f"{amt:.2f}" for amt in comp_totals], f"{grand_total:.2f}"])
-
-    context.csv_output = si.getvalue()
-
-
 # Then steps
 @then("a bill for January 2025 should exist")
 def bill_should_exist(context):
@@ -253,26 +205,6 @@ def bill_not_in_active(context, mock_bill_repo):
     """Verify bill is not in active list."""
     active_bills = mock_bill_repo.list_all()
     assert len(active_bills) == 0, "Archived bill should not appear in active list"
-
-
-@then("I should receive a CSV file")
-def received_csv(context):
-    """Verify CSV was generated."""
-    assert context.csv_output is not None
-    assert len(context.csv_output) > 0
-
-
-@then("the CSV should contain all participant names")
-def csv_has_participants(context):
-    """Verify CSV contains all participants."""
-    for name in context.participants.keys():
-        assert name in context.csv_output, f"Participant '{name}' not found in CSV"
-
-
-@then("the CSV should have a totals row")
-def csv_has_totals(context):
-    """Verify CSV has totals row."""
-    assert "Totals" in context.csv_output, "CSV should have a Totals row"
 
 
 @then(parsers.parse('the operation should fail with "{error_message}"'))

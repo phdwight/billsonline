@@ -14,6 +14,7 @@ from ..repositories import (
     MeterReadingRepository,
     BillComponentRepository,
     MonthParticipantRepository,
+    PhotoRepository,
 )
 from ..forms import MonthForm
 from ..services.bill_calculator import VALID_SPLIT_METHODS, DISTRIBUTION_SPLIT_METHODS
@@ -354,7 +355,9 @@ def export_pdf(bill_id: int):
         return redirect(url_for("home.index"))
 
     bill = data["bill"]
-    pdf = build_month_pdf(data)
+    photos = PhotoRepository().list_for_month(bill.id)
+    photos.sort(key=lambda p: (0 if p.kind == "reading" else 1, p.ref_id, p.position))
+    pdf = build_month_pdf(data, photos=photos)
     filename = f"bill_{bill.year}-{MONTH_NAMES[bill.month - 1]}.pdf"
     return Response(
         pdf,
@@ -363,28 +366,6 @@ def export_pdf(bill_id: int):
             "Content-Disposition": f"attachment; filename={filename}",
             # .pdf is on Cloudflare's default cache-by-extension list; without
             # this, edges serve stale exports after the data (or app) changes.
-            "Cache-Control": "no-store",
-        },
-    )
-
-
-@bp.get("/<int:bill_id>/export.csv")
-def export(bill_id: int):
-    """GET /months/<id>/export.csv - Export month as CSV."""
-    month_service = _get_month_service()
-    result = month_service.export_to_csv(bill_id)
-
-    if not result:
-        flash("Month not found", "error")
-        return redirect(url_for("home.index"))
-
-    csv_content, filename = result
-    return Response(
-        csv_content,
-        mimetype="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename={filename}",
-            # .csv is also on Cloudflare's default cache-by-extension list
             "Cache-Control": "no-store",
         },
     )
@@ -463,4 +444,82 @@ def participants_delete(bill_id: int, pid: int):
         return redirect(url_for("months.show", bill_id=bill.id))
     month_part_repo.remove(bill.id, pid)
     flash("Participant unlinked from month", "info")
+    return redirect(url_for("months.show", bill_id=bill.id))
+
+
+# =============================================================================
+# METER READING PHOTO (one per month, optional)
+# =============================================================================
+
+def _uploaded_photo(files):
+    """First non-empty uploaded file named 'photo' (grid/ledger may both submit one)."""
+    for file in files.getlist("photo"):
+        if file is not None and file.filename:
+            return file
+    return None
+
+
+@bp.post("/<int:bill_id>/reading-photo")
+def reading_photo_upload(bill_id: int):
+    """POST /months/<id>/reading-photo - Attach/replace the meter-section photo."""
+    from ..services.image_service import ImageError, compress_image
+
+    bill = _get_bill_repo().get_by_id(bill_id)
+    if not bill:
+        flash("Month not found", "error")
+        return redirect(url_for("home.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    file = _uploaded_photo(request.files)
+    if file is None:
+        flash("Choose an image to upload", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    try:
+        data, width, height = compress_image(file.read())
+    except ImageError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+
+    PhotoRepository().replace_single(bill.id, "reading", 0, data, "image/jpeg", width, height)
+    flash("Meter photo saved", "info")
+    return redirect(url_for("months.show", bill_id=bill.id))
+
+
+@bp.get("/<int:bill_id>/reading-photo")
+def reading_photo_view(bill_id: int):
+    """GET /months/<id>/reading-photo - Serve the meter-section photo."""
+    from flask import Response as FlaskResponse, abort
+
+    bill = _get_bill_repo().get_by_id(bill_id)
+    if not bill:
+        abort(404)
+    photos = PhotoRepository().list_for(bill.id, "reading", 0)
+    if not photos:
+        abort(404)
+    photo = photos[0]
+    return FlaskResponse(
+        photo.data,
+        mimetype=photo.mime,
+        headers={
+            "Content-Length": str(photo.size_bytes),
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
+@bp.post("/<int:bill_id>/reading-photo/delete")
+def reading_photo_delete(bill_id: int):
+    """POST /months/<id>/reading-photo/delete - Remove the meter-section photo."""
+    bill = _get_bill_repo().get_by_id(bill_id)
+    if not bill:
+        flash("Month not found", "error")
+        return redirect(url_for("home.index"))
+    if bill.archived:
+        flash("This month is archived. Unarchive to make changes.", "error")
+        return redirect(url_for("months.show", bill_id=bill.id))
+    PhotoRepository().delete_for(bill.id, "reading", 0)
+    flash("Meter photo removed", "info")
     return redirect(url_for("months.show", bill_id=bill.id))

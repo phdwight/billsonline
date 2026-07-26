@@ -49,6 +49,13 @@
   <div class="chart-summary" id="chart-summary"></div>
 </section>
 
+<section class="card chart-section" id="total-usage-section" style="display: none;">
+  <h2>Total Consumption Trend</h2>
+  <div class="chart-container">
+    <canvas id="total-usage-chart"></canvas>
+  </div>
+</section>
+
 <section class="card chart-section" id="usage-chart-section" style="display: none;">
   <h2>Electricity Consumption (kWh)</h2>
   <div class="chart-container">
@@ -70,6 +77,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('report-form');
   const chartSection = document.getElementById('chart-section');
+  const totalUsageSection = document.getElementById('total-usage-section');
   const usageChartSection = document.getElementById('usage-chart-section');
   const errorSection = document.getElementById('error-section');
   const errorMessage = document.getElementById('error-message');
@@ -77,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const usageSummary = document.getElementById('usage-summary');
 
   let chart = null;
+  let totalUsageChart = null;
   let usageChart = null;
 
   // Auto-select the full available range so the report renders on first visit
@@ -145,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.textContent = data.error;
         errorSection.style.display = 'block';
         chartSection.style.display = 'none';
+        totalUsageSection.style.display = 'none';
         usageChartSection.style.display = 'none';
         return;
       }
@@ -153,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.textContent = 'No data found for the selected range.';
         errorSection.style.display = 'block';
         chartSection.style.display = 'none';
+        totalUsageSection.style.display = 'none';
         usageChartSection.style.display = 'none';
         return;
       }
@@ -223,6 +234,99 @@ document.addEventListener('DOMContentLoaded', function() {
       // Generate summary
       generateSummary(data);
       
+      // Total kWh per month — single-series line
+      if (data.usage_datasets && data.usage_datasets.length > 0) {
+        totalUsageSection.style.display = 'block';
+        if (totalUsageChart) {
+          totalUsageChart.destroy();
+        }
+        const totals = data.labels.map((_, i) =>
+          +data.usage_datasets.reduce((sum, ds) => sum + (ds.data[i] || 0), 0).toFixed(2));
+        const rates = data.usage_rates || [];
+        const totalCtx = document.getElementById('total-usage-chart').getContext('2d');
+        totalUsageChart = new Chart(totalCtx, {
+          type: 'line',
+          data: {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'Total kWh',
+                data: totals,
+                borderColor: '#416180',
+                backgroundColor: '#416180',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false,
+                tension: 0.1,
+                yAxisID: 'yKwh'
+              },
+              {
+                label: 'Cost per kWh (₱)',
+                data: rates,
+                borderColor: '#7a7a7d',
+                backgroundColor: '#7a7a7d',
+                borderWidth: 2,
+                borderDash: [6, 3],
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false,
+                tension: 0.1,
+                spanGaps: false,
+                yAxisID: 'yRate'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { usePointStyle: true, padding: 20 }
+              },
+              title: {
+                display: true,
+                text: 'Total Electricity Consumption & Cost per kWh',
+                font: { size: 16 }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    if (context.dataset.yAxisID === 'yRate') {
+                      return context.parsed.y == null ? 'Cost: no usage recorded'
+                        : `Cost: ₱${context.parsed.y.toFixed(2)}/kWh`;
+                    }
+                    return `Total: ${context.parsed.y.toFixed(1)} kWh`;
+                  }
+                }
+              }
+            },
+            scales: {
+              yKwh: {
+                position: 'right',
+                beginAtZero: true,
+                title: { display: true, text: 'Consumption (kWh)' },
+                ticks: { callback: function(value) { return value.toFixed(0) + ' kWh'; } }
+              },
+              yRate: {
+                position: 'left',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: '₱ per kWh' },
+                ticks: { callback: function(value) { return '₱' + value.toFixed(0); } }
+              },
+              x: {
+                title: { display: true, text: 'Month' }
+              }
+            }
+          }
+        });
+      } else {
+        totalUsageSection.style.display = 'none';
+      }
+
       // Create usage chart (stacked bar)
       if (data.usage_datasets && data.usage_datasets.length > 0) {
         usageChartSection.style.display = 'block';

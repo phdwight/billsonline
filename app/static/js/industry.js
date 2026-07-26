@@ -78,7 +78,9 @@
     function usageOf(pid) {
       var prev = byKey['prev-' + pid];
       var curr = byKey['curr-' + pid];
-      return Math.max(0, (parseFloat(curr && curr.value) || 0) - (parseFloat(prev && prev.value) || 0));
+      // Meters register tenths of a kWh — divide the raw difference by 10
+      // (mirrors MeterReading.usage() on the backend)
+      return Math.max(0, ((parseFloat(curr && curr.value) || 0) - (parseFloat(prev && prev.value) || 0)) / 10);
     }
 
     function recompute() {

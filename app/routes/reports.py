@@ -119,6 +119,7 @@ def get_report_data():
     labels = []  # Month labels for x-axis
     datasets = {}  # {participant_name: [totals per month]}
     usage_datasets = {}  # {participant_name: [usage per month]}
+    usage_rates = []  # [₱ per kWh per month, None when no usage]
     
     for bill in bills_in_range:
         label = f"{month_names[bill.month - 1]} {bill.year}"
@@ -161,6 +162,16 @@ def get_report_data():
         usage_this_month = {p.id: 0.0 for p in all_participants}
         for reading in readings:
             usage_this_month[reading.participant_id] = reading.usage()
+
+        # Effective electricity cost per kWh this month (usage-split ₱ / total kWh)
+        usage_split_amount = sum(
+            float(c.amount or 0) for c in components if c.split_method == 'usage'
+        )
+        month_total_usage = sum(usage_this_month.values())
+        usage_rates.append(
+            round(usage_split_amount / month_total_usage, 2)
+            if month_total_usage > 0 and usage_split_amount > 0 else None
+        )
         
         # Add to datasets
         for p in all_participants:
@@ -215,5 +226,6 @@ def get_report_data():
     return jsonify({
         'labels': labels,
         'datasets': chart_datasets,
-        'usage_datasets': usage_chart_datasets
+        'usage_datasets': usage_chart_datasets,
+        'usage_rates': usage_rates
     })

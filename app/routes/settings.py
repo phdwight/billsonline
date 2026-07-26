@@ -78,6 +78,8 @@ def database_upload():
         # columns via create_all).
         try:
             db.create_all()
+            from ..repositories import migrate_component_images_to_photos
+            migrate_component_images_to_photos()
 
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()

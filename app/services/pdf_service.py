@@ -19,6 +19,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     HRFlowable,
+    Image as RLImage,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -100,8 +101,12 @@ def _base_table_style(header_rows: int = 1) -> TableStyle:
     ])
 
 
-def build_month_pdf(data: Dict[str, Any]) -> bytes:
-    """Build the printable month summary. `data` is MonthService.get_month_detail_data output."""
+def build_month_pdf(data: Dict[str, Any], photos=None) -> bytes:
+    """Build the printable month summary.
+
+    `data` is MonthService.get_month_detail_data output; `photos` an optional
+    list of Photo rows (meter + component) appended after the contributions.
+    """
     _register_fonts()
     st = _styles()
 
@@ -291,11 +296,49 @@ def build_month_pdf(data: Dict[str, Any]) -> bytes:
     else:
         story.append(Paragraph("No components recorded for this month.", st["cell_muted"]))
 
+    # ── photos (meter + bill), after the contributions table ──
+    photo_cells = []
+    comp_name_by_id = {c.id: c.name for c in components}
+    for photo in (photos or []):
+        if photo.kind == "reading":
+            caption = "Meter reading"
+        else:
+            comp_name = comp_name_by_id.get(photo.ref_id, "Component")
+            caption = f"{comp_name} — bill photo {photo.position + 1}"
+        cell_w = (width - 8 * mm) / 2
+        img_h = cell_w * (photo.height / photo.width) if photo.width else cell_w
+        max_h = 95 * mm
+        if img_h > max_h:
+            cell_w = cell_w * (max_h / img_h)
+            img_h = max_h
+        photo_cells.append([
+            Paragraph(caption, st["cell_muted"]),
+            RLImage(io.BytesIO(photo.data), width=cell_w, height=img_h),
+        ])
+
+    if photo_cells:
+        story.append(Paragraph("Photos", st["h2"]))
+        story.append(Paragraph(
+            "Meter and bill photos attached to this billing period.", st["note"]))
+        story.append(Spacer(1, 4))
+        # two photos per row
+        for i in range(0, len(photo_cells), 2):
+            row = [photo_cells[i], photo_cells[i + 1] if i + 1 < len(photo_cells) else ""]
+            t = Table([row], colWidths=[width / 2, width / 2])
+            t.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.append(t)
+
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width=width, thickness=0.5, color=HAIRLINE))
     story.append(Paragraph(
         "Amounts in Philippine pesos. Contributions include split methods, custom shares and "
-        "redistribution rules; columns match the CSV export.", st["note"]))
+        "redistribution rules.", st["note"]))
 
     doc.build(story)
     return buf.getvalue()

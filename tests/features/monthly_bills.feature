@@ -53,11 +53,3 @@ Feature: Monthly Bill Management
     Given a bill for January 2025 exists
     When I delete the bill for January 2025
     Then the bill for January 2025 should not exist
-
-  Scenario: Export bill to CSV
-    Given a bill for January 2025 exists with components
-    And meter readings are recorded for all participants
-    When I export the bill to CSV
-    Then I should receive a CSV file
-    And the CSV should contain all participant names
-    And the CSV should have a totals row

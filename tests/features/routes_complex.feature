@@ -108,41 +108,6 @@ Feature: Complex Route Operations
     When I try to save adjustments
     Then I should see an archived warning
 
-  # ===== CSV Export =====
-
-  Scenario: Export CSV with components and readings
-    Given a component "Electricity" exists with amount 300.00 split "usage"
-    And a component "Water" exists with amount 90.00 split "equal"
-    And meter readings exist:
-      | participant | current | previous |
-      | Alice       | 200     | 100      |
-      | Bob         | 150     | 100      |
-      | Cara        | 100     | 100      |
-    When I export the bill to CSV
-    Then I should receive a CSV file
-    And the CSV should contain "Participant"
-    And the CSV should contain "Electricity"
-    And the CSV should contain "Water"
-    And the CSV should contain "Alice"
-    And the CSV should contain "Bob"
-    And the CSV should contain "Cara"
-
-  Scenario: Export CSV synthesizes legacy components
-    Given a standalone bill for August 2025 with only legacy amounts:
-      | electricity | water | internet |
-      | 100.00      | 50.00 | 30.00    |
-    When I export that bill to CSV
-    Then the CSV should contain "Electricity"
-    And the CSV should contain "Water"
-    And the CSV should contain "Internet"
-
-  Scenario: Export CSV for non-existent month
-    When I try to export CSV for month 9999
-    Then I should see a not found error
-
-  Scenario: Export CSV has correct filename
-    When I export the bill to CSV
-    Then the CSV filename should contain "bill_2025-March.csv"
 
   # ===== Update Month =====
 

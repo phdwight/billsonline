@@ -5,9 +5,7 @@ separate from route handling and data access.
 """
 from __future__ import annotations
 
-import csv
-from io import StringIO
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
 from ..models import MonthlyBill, BillComponent, Participant
 from ..repositories import (
@@ -16,8 +14,8 @@ from ..repositories import (
     MeterReadingRepository,
     BillComponentRepository,
     ComponentAdjustmentRepository,
-    ComponentImageRepository,
     MonthParticipantRepository,
+    PhotoRepository,
 )
 from .bill_calculator import BillCalculator, VALID_SPLIT_METHODS
 
@@ -109,9 +107,10 @@ class MonthService:
                 component_adjustments=comp_adjs,
             )
 
-        component_image_ids = ComponentImageRepository().component_ids_with_image(
-            [c.id for c in components]
-        )
+        photo_repo = PhotoRepository()
+        component_photos = photo_repo.ids_by_ref_for_month(bill.id, 'component')
+        reading_photo = photo_repo.list_for(bill.id, 'reading', 0)
+        reading_photo_id = reading_photo[0].id if reading_photo else None
 
         # Raw usage-based split, before any adjustments/redistribution:
         # each member's share of the usage-split components (typically
@@ -132,7 +131,8 @@ class MonthService:
         return {
             'bill': bill,
             'participants': participants,
-            'component_image_ids': component_image_ids,
+            'component_photos': component_photos,
+            'reading_photo_id': reading_photo_id,
             'member_ids': member_ids,
             'readings': readings,
             'readings_by_pid': readings_by_pid,
@@ -171,85 +171,6 @@ class MonthService:
             for p in participants:
                 base_map[p.id] = share
         return base_map
-
-    def export_to_csv(self, bill_id: int) -> Optional[tuple[str, str]]:
-        """Export month data to CSV.
-
-        Returns a tuple of (csv_content, filename) or None if bill not found.
-        """
-        bill = self.bill_repo.get_by_id(bill_id)
-        if not bill:
-            return None
-
-        participants = self.participants_repo.list_all()
-        readings = self.reading_repo.list_for_month(bill.id)
-        components = self.component_repo.list_for_month(bill.id)
-
-        si = StringIO()
-        writer = csv.writer(si)
-
-        # If no components exist, synthesize from legacy amounts
-        synth_components = []
-        if not components:
-            synth_components = self._synthesize_legacy_components(bill)
-
-        effective_components = components or synth_components
-        comp_adjs = self.comp_adjust_repo.list_for_month(bill.id) if components else []
-
-        dyn = self.calculator.compute_contributions_dynamic(
-            bill=bill,
-            components=effective_components,
-            readings=readings,
-            participants=participants,
-            component_adjustments=comp_adjs,
-        )
-
-        ordered_names = [c.name for c in effective_components]
-        writer.writerow(["Participant", *ordered_names, "Total"])
-
-        for c in dyn:
-            row = [c.participant.name]
-            total = 0.0
-            for name in ordered_names:
-                val = round(float(c.components.get(name, 0.0)), 2)
-                row.append(f"{val:.2f}")
-                total += val
-            row.append(f"{total:.2f}")
-            writer.writerow(row)
-
-        comp_totals = [float(c.amount) for c in effective_components]
-        grand_total = sum(comp_totals)
-        writer.writerow(["Totals", *[f"{amt:.2f}" for amt in comp_totals], f"{grand_total:.2f}"])
-
-        month_names = ["January", "February", "March", "April", "May", "June",
-                       "July", "August", "September", "October", "November", "December"]
-        filename = f"bill_{bill.year}-{month_names[bill.month - 1]}.csv"
-
-        return si.getvalue(), filename
-
-    def _synthesize_legacy_components(self, bill: MonthlyBill) -> List[BillComponent]:
-        """Create synthetic components from legacy bill amounts."""
-        synth = []
-        pos = 0
-        if bill.electricity_amount and bill.electricity_amount > 0:
-            c = BillComponent(month_id=bill.id, name="Electricity",
-                              amount=float(bill.electricity_amount), split_method="usage", position=pos)
-            c.id = 1
-            synth.append(c)
-            pos += 1
-        if bill.water_amount and bill.water_amount > 0:
-            c = BillComponent(month_id=bill.id, name="Water",
-                              amount=float(bill.water_amount), split_method="equal", position=pos)
-            c.id = 2
-            synth.append(c)
-            pos += 1
-        if bill.internet_amount and bill.internet_amount > 0:
-            c = BillComponent(month_id=bill.id, name="Internet",
-                              amount=float(bill.internet_amount), split_method="equal", position=pos)
-            c.id = 3
-            synth.append(c)
-            pos += 1
-        return synth
 
     # pylint: disable=too-many-arguments
     def create_month_with_components(

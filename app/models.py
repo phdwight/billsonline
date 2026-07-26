@@ -48,10 +48,14 @@ class MeterReading(db.Model):
     participant = db.relationship("Participant", back_populates="readings")
     month = db.relationship("MonthlyBill", back_populates="readings")
 
+    # The meters register tenths of a kWh, so the raw reading difference is
+    # divided by 10 to get actual consumption.
+    METER_DIVISOR = 10.0
+
     def usage(self) -> float:
         if self.reading_previous is None:
             return 0.0
-        return max(0.0, self.reading_current - self.reading_previous)
+        return max(0.0, (self.reading_current - self.reading_previous) / self.METER_DIVISOR)
 
 
 class MonthParticipant(db.Model):
@@ -89,14 +93,22 @@ class BillComponent(db.Model):
         return f"<BillComponent {self.name} {self.amount} {self.split_method}>"
 
 
-class ComponentImage(db.Model):
-    """Optional photo of the physical bill for a component (stored compressed)."""
+class Photo(db.Model):
+    """Optional photos for a month, stored compressed.
 
-    __tablename__ = "component_images"
+    kind='component': a bill photo, ref_id = BillComponent.id (max 2 per component).
+    kind='reading':   the month's single meter-section photo (ref_id = 0).
+    """
+
+    KIND_COMPONENT = "component"
+    KIND_READING = "reading"
+
+    __tablename__ = "photos"
     id = db.Column(db.Integer, primary_key=True)
-    component_id = db.Column(
-        db.Integer, db.ForeignKey("bill_components.id"), nullable=False, unique=True, index=True
-    )
+    month_id = db.Column(db.Integer, db.ForeignKey("monthly_bills.id"), nullable=False, index=True)
+    kind = db.Column(db.String(16), nullable=False)
+    ref_id = db.Column(db.Integer, nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=0)
     mime = db.Column(db.String(32), nullable=False, default="image/jpeg")
     data = db.Column(db.LargeBinary, nullable=False)
     width = db.Column(db.Integer, nullable=False)
@@ -104,13 +116,15 @@ class ComponentImage(db.Model):
     size_bytes = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.Date, default=date.today, nullable=False)
 
-    component = db.relationship(
-        "BillComponent",
-        backref=db.backref("image", uselist=False, cascade="all, delete-orphan"),
+    month = db.relationship(
+        "MonthlyBill",
+        backref=db.backref("photos", cascade="all, delete-orphan"),
     )
 
+    __table_args__ = (db.Index("ix_photos_lookup", "month_id", "kind", "ref_id"),)
+
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<ComponentImage component={self.component_id} {self.size_bytes}B>"
+        return f"<Photo {self.kind}:{self.ref_id} month={self.month_id} {self.size_bytes}B>"
 
 
 class ComponentAdjustment(db.Model):

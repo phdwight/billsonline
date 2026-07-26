@@ -155,7 +155,6 @@
           </a>
           <div class="month-actions">
             <a href="{{ url_for('months.edit', bill_id=m.id) }}" class="btn btn-action" title="Edit"><svg class="icon"><use href="#icon-edit"/></svg><span class="action-label">Edit</span></a>
-            <a href="{{ url_for('months.export', bill_id=m.id) }}" class="btn btn-action" title="Export CSV"><svg class="icon"><use href="#icon-csv"/></svg><span class="action-label">CSV</span></a>
             <div class="action-more">
               <button type="button" class="btn btn-action btn-more" title="More options" onclick="toggleMoreActions(this)">⋮</button>
               <div class="more-actions-dropdown">

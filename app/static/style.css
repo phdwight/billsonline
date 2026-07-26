@@ -2,9 +2,8 @@
    Bills Online — "Industry" design system (blueprint wireframe re-skin).
    Tokens and component classes ported from the design handoff's
    industry-styles.css; app-specific layout and legacy-template compatibility
-   classes follow the same tokens. Cards, figures and the primary button are
-   "blueprint objects": square corners, hairline border, transparent fill,
-   "+" registration marks at the corners.
+   classes follow the same tokens. Cards and figures are hairline-bordered,
+   transparent-filled objects with soft rounded corners.
    ═══════════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
 
@@ -49,9 +48,9 @@
   --space-6: 20.4px;
   --space-8: 27.2px;
 
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 7px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 
   --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
   --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
@@ -109,26 +108,14 @@ small { font-size: 12px; }
 @keyframes bo-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .fade-in { animation: bo-fade 0.3s both; }
 
-/* ── blueprint frame + registration marks ─────────────────────────────── */
+/* ── blueprint frame ──────────────────────────────────────────────────── */
 .blueprint {
   position: relative;
   border: 1px solid var(--color-divider);
-  border-radius: 0;
+  border-radius: var(--radius-md);
 }
-.blueprint > .corner {
-  position: absolute; width: 11px; height: 11px;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-  pointer-events: none;
-}
-.blueprint > .corner::before, .blueprint > .corner::after {
-  content: ""; position: absolute; background: currentColor;
-}
-.blueprint > .corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
-.blueprint > .corner::after  { top: 5px; left: 0; width: 100%; height: 1px; }
-.blueprint > .corner.tl { top: -6px; left: -6px; }
-.blueprint > .corner.tr { top: -6px; right: -6px; }
-.blueprint > .corner.bl { bottom: -6px; left: -6px; }
-.blueprint > .corner.br { bottom: -6px; right: -6px; }
+/* corner registration marks retired in favor of soft rounded corners */
+.blueprint > .corner { display: none; }
 
 /* ── icons ────────────────────────────────────────────────────────────── */
 .icon { width: 15px; height: 15px; flex: none; display: inline-block; vertical-align: -2px; }
@@ -145,7 +132,7 @@ small { font-size: 12px; }
   background: transparent;
   border: 1px solid var(--color-divider);
   padding: var(--space-2) calc(var(--space-3) * 1.2);
-  border-radius: 0;
+  border-radius: var(--radius-md);
 }
 .btn svg { display: block; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -190,7 +177,7 @@ main textarea {
   min-height: 36px; padding: 6px 10px; font: inherit;
   font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
   background: var(--color-surface);
-  border: 1px solid var(--color-divider); border-radius: 0;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .input { width: 100%; }
 .input:hover,
@@ -213,7 +200,7 @@ label > small { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 /* segmented control */
 .seg {
   display: inline-flex; overflow: hidden;
-  border: 1px solid var(--color-divider); border-radius: 0;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
 }
 .seg-opt {
   display: inline-flex; align-items: center; gap: 6px;
@@ -229,7 +216,7 @@ label > small { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 /* ── cards ────────────────────────────────────────────────────────────── */
 .card {
   display: flex; flex-direction: column; gap: var(--space-3);
-  padding: var(--space-6); border-radius: 0;
+  padding: var(--space-6); border-radius: var(--radius-lg);
   background: transparent; border: 1px solid var(--color-divider);
   position: relative;
 }
@@ -254,14 +241,14 @@ label > small { color: color-mix(in srgb, var(--color-text) 70%, transparent); }
 /* ── tags ─────────────────────────────────────────────────────────────── */
 .tag {
   display: inline-flex; align-items: center; font-size: 11px;
-  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 0;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 999px;
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
 .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
 .tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
 .badge-archived {
   display: inline-flex; align-items: center; font-size: 11px;
-  letter-spacing: 0.02em; padding: 3px 10px;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 999px;
   background: var(--color-neutral-100); color: var(--color-neutral-800);
 }
 
@@ -482,11 +469,14 @@ td.num, th.num { text-align: right; }
 }
 .photo-thumb {
   display: block; width: 72px; height: 52px; overflow: hidden;
-  border: 1px solid var(--color-divider);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-sm);
 }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .photo-thumb:hover { box-shadow: var(--shadow-sm); border-color: var(--color-accent); }
 .photo-upload-label { cursor: pointer; }
+.photo-item { display: inline-flex; align-items: center; gap: var(--space-2); }
+.photo-cell { display: inline-flex; align-items: center; gap: var(--space-2); justify-content: flex-end; }
+.photo-thumb-sm { width: 48px; height: 34px; }
 .photo-upload-label.uploading { opacity: 0.45; pointer-events: none; }
 
 /* redistribution (advanced) */
@@ -524,6 +514,7 @@ details.redis-details > summary {
 .flashes { list-style: none; margin: 0 0 var(--space-6); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .flashes li {
   border: 1px solid var(--color-divider); border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
   background: var(--color-surface); padding: var(--space-2) var(--space-4);
   font-size: 13px; animation: bo-fade 0.3s both;
 }
@@ -575,7 +566,7 @@ details.redis-details > summary {
 .action-more { position: relative; }
 .more-actions-dropdown {
   display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 10;
-  background: var(--color-bg); border: 1px solid var(--color-divider);
+  background: var(--color-bg); border: 1px solid var(--color-divider); border-radius: var(--radius-md);
   box-shadow: var(--shadow-md); min-width: 140px; padding: var(--space-1);
 }
 .action-more.open .more-actions-dropdown { display: block; }

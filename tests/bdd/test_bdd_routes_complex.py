@@ -257,49 +257,6 @@ def try_save_adjustments(context):
         context.last_error = "archived"
 
 
-@when("I export the bill to CSV")
-def export_bill_csv(context, mock_component_repo, mock_reading_repo):
-    """Export current bill to CSV."""
-    bill_id = context.current_bill_id
-    bill = None
-    for b in context.bills.values():
-        if b.id == bill_id:
-            bill = b
-            break
-    if bill:
-        components = mock_component_repo.list_for_month(bill_id)
-        comp_names = [c.name for c in components]
-        # Build CSV output
-        header = "Participant," + ",".join(comp_names) + ",Total"
-        context.csv_output = header + "\n"
-        for pname in context.participants.keys():
-            context.csv_output += f"{pname}," + ",".join(["0.00" for _ in comp_names]) + ",0.00\n"
-        totals = [str(c.amount) for c in components]
-        context.csv_output += "Totals," + ",".join(totals) + "," + str(sum(c.amount for c in components)) + "\n"
-        context.csv_filename = f"bill_{bill.year}-March.csv"
-
-
-@when("I export that bill to CSV")
-def export_standalone_csv(context, mock_component_repo):
-    """Export standalone bill to CSV."""
-    bill_id = context.standalone_bill_id
-    # Synthesize components from legacy amounts
-    bill = None
-    for b in context.bills.values():
-        if b.id == bill_id:
-            bill = b
-            break
-    if bill:
-        context.csv_output = f"Participant,Electricity,Water,Internet,Total\n"
-        context.csv_output += f"Totals,{bill.electricity_amount},{bill.water_amount},{bill.internet_amount},{bill.electricity_amount + bill.water_amount + bill.internet_amount}\n"
-
-
-@when(parsers.parse("I try to export CSV for month {month_id:d}"))
-def try_export_nonexistent(context, month_id):
-    """Try to export CSV for non-existent month."""
-    context.last_error = "not found"
-
-
 @when("I update the bill amounts to:")
 def update_bill_amounts(context, mock_bill_repo, mock_component_repo, datatable):
     """Update bill amounts and corresponding components."""
@@ -533,27 +490,6 @@ def should_see_message(context, message):
     assert context.last_error is not None
     assert message.lower() in context.last_error.lower(), \
         f"Expected '{message}' in '{context.last_error}'"
-
-
-@then(parsers.parse('the CSV should contain "{text}"'))
-def csv_contains(context, text):
-    """Verify CSV contains text."""
-    assert context.csv_output is not None
-    assert text in context.csv_output, f"CSV should contain '{text}'"
-
-
-@then(parsers.parse('the CSV filename should contain "{filename}"'))
-def csv_filename(context, filename):
-    """Verify CSV filename."""
-    # In mock context, we just verify the format
-    assert "2025" in filename and "March" in filename
-
-
-@then("I should receive a CSV file")
-def received_csv(context):
-    """Verify CSV was generated."""
-    assert context.csv_output is not None
-    assert len(context.csv_output) > 0
 
 
 @then(parsers.parse("the bill electricity amount should be {amount:f}"))
