@@ -1,0 +1,46 @@
+{
+  "phase": "iterative_coding",
+  "concept_summary": "Bills Online — a Flask web app (v2.0.26) for splitting monthly household utility bills among housemates. Each month is a billing period with dynamic bill components (Electricity, Water, Internet, Rent, ...) split by one of four methods: equal, usage (meter readings, tenths of kWh), percentage, or fixed amount. Supports redistribution rules (shift an excluded person's share to others by percent or fixed peso amounts), bill/meter photos (compressed, stored in DB), archive/unarchive of months, printable PDF export, reports (contribution pie, consumption trend, stacked kWh bars), a People Directory, and SQLite backup/restore with automatic schema upgrade. UI is the 'Industry' steel-blue design system, responsive, CSRF-protected.",
+  "approved_stack": {
+    "language": "Python 3.12",
+    "framework": "Flask (app factory pattern), served via uvicorn ASGI wrapper (asgi.py) in Docker; wsgi.py for dev",
+    "database": "SQLite via SQLAlchemy, Alembic migrations (auto-upgrade on restore)",
+    "frontend": "Jinja2 templates + vanilla JS + custom CSS ('Industry' design system), Lucide icons",
+    "forms": "Flask-WTF / WTForms with CSRF",
+    "images": "Pillow (EXIF-rotate, strip metadata, downscale 1600px, JPEG)",
+    "pdf": "reportlab",
+    "testing": "pytest + pytest-bdd (Gherkin, 277 backend tests) + Playwright (19 UI tests), ~88% coverage, 80% CI minimum",
+    "ci_cd": "GitHub Actions: tests on PRs to main; on merge, patch-version bump + git tag + multi-arch image push to ghcr.io/phdwight/billsonline",
+    "deployment": "Docker / docker compose, named volume for SQLite; fronted by Cloudflare Tunnel in production (chunked-body quirk handled by asgi.py buffering)"
+  },
+  "architecture_approved": true,
+  "prior_architecture": null,
+  "file_tree": {
+    "app/": "factory.py (app factory), config.py, extensions.py (db/migrate/csrf), models.py (7 SQLAlchemy models), repositories.py (data access), forms.py, version.py",
+    "app/routes/": "registration.py, home.py, admin.py, months.py (CRUD/readings/PDF), participants.py, components.py (+photos), adjustments.py, reports.py, settings.py (directory/backup/restore)",
+    "app/services/": "bill_calculator.py, month_service.py, adjustment_service.py, image_service.py, pdf_service.py",
+    "app/templates/": "base, index, month_detail, new_month, edit_month, archived, admin, participants, reports, settings",
+    "app/static/": "style.css, js/{industry,month-detail,admin,settings}.js, bundled fonts",
+    "tests/": "bdd/ (backend, pytest-bdd + plain pytest), features/ (16 Gherkin files), ui/ (Playwright + Gherkin)",
+    "migrations/": "Alembic env + 6 versions",
+    "root": "main.py/asgi.py (ASGI), wsgi.py, Dockerfile, compose.yaml, requirements*.txt, VERSION, pytest.ini"
+  },
+  "component_checklist": [
+    { "name": "models_and_migrations", "depends_on": [], "status": "built" },
+    { "name": "repositories", "depends_on": ["models_and_migrations"], "status": "built" },
+    { "name": "bill_calculator_service", "depends_on": ["repositories"], "status": "built" },
+    { "name": "month_service", "depends_on": ["bill_calculator_service"], "status": "built" },
+    { "name": "adjustment_service", "depends_on": ["bill_calculator_service"], "status": "built" },
+    { "name": "image_service", "depends_on": [], "status": "built" },
+    { "name": "pdf_service", "depends_on": ["month_service"], "status": "built" },
+    { "name": "routes_and_forms", "depends_on": ["month_service", "adjustment_service", "image_service", "pdf_service"], "status": "built" },
+    { "name": "templates_and_static", "depends_on": ["routes_and_forms"], "status": "built" },
+    { "name": "reports", "depends_on": ["routes_and_forms"], "status": "built" },
+    { "name": "settings_backup_restore", "depends_on": ["routes_and_forms"], "status": "built" },
+    { "name": "ci_cd_docker", "depends_on": [], "status": "built" },
+    { "name": "local_dev_docs_pyenv", "depends_on": [], "status": "built", "description": "README.md + handoff.md local-Python instructions: create pyenv virtualenv billsonline-env first (matches committed .python-version), use python -m pip for all installs" },
+    { "name": "harness_progressive_disclosure", "depends_on": [], "status": "built", "description": "Thin CLAUDE.md bootstrap + .harness/phases/*.md (idea_gathering, codebase_ingestion, tech_stack_selection, architecture_design, iterative_coding) + state.template.json; phase rules load only when their phase is active" },
+    { "name": "local_smoke_testing", "depends_on": ["ci_cd_docker"], "status": "built", "description": "scripts/smoke.sh deploys billsonline:local in Docker and runs tests/smoke/ Playwright suite: screenshots every page for visual inspection, fails on console/page/HTTP errors; wired into iterative_coding phase verification and README" }
+  ],
+  "notes": "state.json reconstructed 2026-08-16 by ingesting the existing codebase (README v2.0.26, 296 passing tests, ~88% coverage); blueprint approved by user the same day and phase advanced to iterative_coding. Harness scaffolding (state.template.json + phases/*.md) created 2026-08-16 for progressive disclosure. Dev workflow: branch from develop, PR develop->main; verify runtime changes against the local Docker image (billsonline:local), not bare flask/uvicorn."
+}

@@ -141,19 +141,27 @@ Set `SECRET_KEY` in your environment (or a `.env` next to the compose file) for 
 
 ### Option 2: Run Directly with Python
 
-**Prerequisites**: Python 3.12
+**Prerequisites**: [pyenv](https://github.com/pyenv/pyenv) with the [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv) plugin
+
+Always create the pyenv virtualenv **before** running anything, and always invoke pip
+as `python -m pip` so packages install into that environment (never the system Python):
 
 ```bash
 # Clone the repository
 git clone https://github.com/phdwight/billsonline.git
 cd billsonline
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create the pyenv virtualenv (one-time). The committed .python-version file
+# names it, so pyenv auto-activates it whenever you cd into the repo.
+pyenv install 3.12 --skip-existing
+pyenv virtualenv 3.12 billsonline-env
+
+# Verify the right environment is active before installing anything
+pyenv version          # should print: billsonline-env
+python -m pip --version
 
 # Install dependencies (add requirements-dev.txt to run the test suite)
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Run with the Flask development server (schema auto-creates on first start)
 flask --app wsgi run --debug --port 5000
@@ -215,8 +223,8 @@ The project includes **296 tests** (~88% code coverage): 277 backend tests (most
 ### Run All Tests
 
 ```bash
-# Test dependencies
-pip install -r requirements-dev.txt
+# Test dependencies (inside the billsonline-env pyenv virtualenv — see Quick Start)
+python -m pip install -r requirements-dev.txt
 
 # Backend tests
 pytest --ignore=tests/ui
@@ -263,6 +271,23 @@ Scenario: Add an equally split component
   When I add a component "Water" with amount 300.00 split "equal"
   Then each participant should pay 100.00 for "Water"
 ```
+
+### Smoke Tests (local deploy + Playwright)
+
+Before shipping runtime or UI changes, deploy locally and smoke-test the real
+thing — the same Docker image production runs, driven by Playwright:
+
+```bash
+bash scripts/smoke.sh          # build billsonline:local, run it on :8100, smoke it
+SMOKE_PORT=8200 bash scripts/smoke.sh   # alternate port
+```
+
+The suite visits every top-level page plus a real month-creation flow (CSRF
+enabled), fails on any console error, uncaught page error, or 4xx/5xx
+response, and saves full-page screenshots to `tests/smoke/screenshots/` so
+you can visually inspect what actually rendered. The tests are skipped unless
+`SMOKE_BASE_URL` is set, so plain `pytest` runs are unaffected; the temporary
+container and its throwaway database are removed automatically.
 
 ### UI Tests (Playwright)
 
