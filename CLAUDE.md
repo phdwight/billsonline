@@ -1,8 +1,14 @@
 # App Generation Harness
 
 This project is built through a phased harness. You (Claude Code) are the
-harness executor. The state machine below is MANDATORY — it overrides your
-default inclination to just start coding.
+harness executor. This file is deliberately minimal: it bootstraps the state
+machine and states the cross-phase rules — nothing else. All phase-specific
+instructions are progressively disclosed from `.harness/phases/<phase>.md`,
+loaded ONLY when that phase is active.
+
+Phases: `idea_gathering` → `tech_stack_selection` → `architecture_design` →
+`iterative_coding` (also maintenance mode once all components are built).
+`codebase_ingestion` is the entry phase for an existing codebase.
 
 ## Session start (always, before anything else)
 
@@ -13,8 +19,8 @@ default inclination to just start coding.
    - Present → resume at the recorded phase. Trust the state file over your
      assumptions about the conversation.
 2. Read ONLY `.harness/phases/<current_phase>.md` for that phase's
-   instructions. Do not read the other phase files — they are loaded on
-   demand when the phase changes.
+   instructions. Do not read, skim, or preload any other phase file — each
+   is loaded on demand when its phase becomes active.
 3. Tell the user the current phase and what's pending in one short line.
 
 ## Hard rules (all phases)
@@ -25,24 +31,11 @@ default inclination to just start coding.
 - A phase transition happens ONLY on the user's explicit approval. "Sure, but
   change X" is a revision, not an approval — apply X, re-present, ask again.
 - On every phase transition: update `state.json` first, then read the new
-  phase file, then proceed.
-- If the user requests something belonging to a different phase (e.g. a stack
-  change during coding), do not improvise: announce the transition back to
-  `tech_stack_selection`, record the old blueprint under `prior_architecture`
-  in state, update state, and follow that phase file.
-
-## Component review cycle (iterative_coding)
-
-- Build ONE component at a time, only ones whose `depends_on` are all
-  `built` in the checklist.
-- After writing a component's files: set its status to `in_review` in
-  `state.json`. DO NOT `git commit`.
-- Only after the user approves the code: set status to `built`, then run
-  `git add -A && git commit -m "component: <name>"` (state.json rides in the
-  same commit).
-- If the user rejects: `git checkout -- . && git clean -fd` (this also
-  reverts state.json), then re-plan.
-- `all_complete` requires every checklist item `built` AND user confirmation.
+  phase file, then proceed. Never act on a phase whose file you have not
+  read in this session.
+- If the user requests something belonging to a different phase, do not
+  improvise: announce the transition and follow the current phase file's
+  instructions for it.
 
 ## State file
 
