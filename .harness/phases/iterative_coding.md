@@ -8,8 +8,16 @@ stop and tell the user instead of coding.
 
 - Build ONE component at a time, only ones whose `depends_on` are all
   `built` in the checklist. If several are eligible, propose one and ask.
-- After writing a component's files: set its status to `in_review` in
-  `state.json`. DO NOT `git commit`.
+- After writing a component's files, VERIFY before presenting:
+  1. Run the relevant backend tests (`python -m pytest --ignore=tests/ui --ignore=tests/smoke`).
+  2. For anything touching runtime behavior or UI: deploy locally and smoke
+     it with `bash scripts/smoke.sh` — this builds the `billsonline:local`
+     Docker image (never bare flask/uvicorn), runs the container, and drives
+     it with Playwright, failing on any console/page/HTTP error.
+  3. Look at the screenshots in `tests/smoke/screenshots/` (Read the PNGs)
+     to visually confirm the pages actually render as intended.
+- Then set the component's status to `in_review` in `state.json`.
+  DO NOT `git commit`.
 - Present what was built and wait for review. Only after the user approves:
   set status to `built`, then run
   `git add -A && git commit -m "component: <name>"` (state.json rides in the

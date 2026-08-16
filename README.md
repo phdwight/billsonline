@@ -272,6 +272,23 @@ Scenario: Add an equally split component
   Then each participant should pay 100.00 for "Water"
 ```
 
+### Smoke Tests (local deploy + Playwright)
+
+Before shipping runtime or UI changes, deploy locally and smoke-test the real
+thing — the same Docker image production runs, driven by Playwright:
+
+```bash
+bash scripts/smoke.sh          # build billsonline:local, run it on :8100, smoke it
+SMOKE_PORT=8200 bash scripts/smoke.sh   # alternate port
+```
+
+The suite visits every top-level page plus a real month-creation flow (CSRF
+enabled), fails on any console error, uncaught page error, or 4xx/5xx
+response, and saves full-page screenshots to `tests/smoke/screenshots/` so
+you can visually inspect what actually rendered. The tests are skipped unless
+`SMOKE_BASE_URL` is set, so plain `pytest` runs are unaffected; the temporary
+container and its throwaway database are removed automatically.
+
 ### UI Tests (Playwright)
 
 Located in `tests/ui/` with Gherkin feature files in `tests/ui/features/`:
