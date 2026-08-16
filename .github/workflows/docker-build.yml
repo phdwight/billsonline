@@ -94,8 +94,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          # On main pushes, build the bumped commit so VERSION matches the tag
-          ref: ${{ needs.bump.outputs.sha || github.ref }}
+          # On main pushes, build the bumped commit so VERSION matches the tag.
+          # On PRs, pin to the head commit: the default refs/pull/N/merge ref
+          # is deleted the instant auto-merge lands the PR, which made this
+          # job fail with "couldn't find remote ref" on every auto-merged PR.
+          ref: ${{ needs.bump.outputs.sha || github.event.pull_request.head.sha || github.ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
