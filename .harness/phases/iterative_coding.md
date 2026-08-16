@@ -26,6 +26,16 @@ stop and tell the user instead of coding.
 - If the user rejects: `git checkout -- . && git clean -fd` (this also
   reverts state.json), then re-plan with their feedback.
 
+## Releasing (PR to main)
+
+- Ship via PR from `develop` to `main`; CI must pass before merge.
+- After the merge, CI pushes a version-bump commit to `main` only. ALWAYS
+  sync develop immediately so histories stay clean:
+  `git fetch origin && git checkout develop && git merge --ff-only origin/main && git push origin develop`
+  This is a fast-forward when develop was fully merged; if `--ff-only`
+  refuses, develop has unmerged commits — rebase or merge deliberately,
+  never force-push.
+
 ## New requests while in this phase
 
 - A new feature/change → add it to `component_checklist` as `pending` with
