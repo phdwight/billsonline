@@ -141,19 +141,27 @@ Set `SECRET_KEY` in your environment (or a `.env` next to the compose file) for 
 
 ### Option 2: Run Directly with Python
 
-**Prerequisites**: Python 3.12
+**Prerequisites**: [pyenv](https://github.com/pyenv/pyenv) with the [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv) plugin
+
+Always create the pyenv virtualenv **before** running anything, and always invoke pip
+as `python -m pip` so packages install into that environment (never the system Python):
 
 ```bash
 # Clone the repository
 git clone https://github.com/phdwight/billsonline.git
 cd billsonline
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create the pyenv virtualenv (one-time). The committed .python-version file
+# names it, so pyenv auto-activates it whenever you cd into the repo.
+pyenv install 3.12 --skip-existing
+pyenv virtualenv 3.12 billsonline-env
+
+# Verify the right environment is active before installing anything
+pyenv version          # should print: billsonline-env
+python -m pip --version
 
 # Install dependencies (add requirements-dev.txt to run the test suite)
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Run with the Flask development server (schema auto-creates on first start)
 flask --app wsgi run --debug --port 5000
@@ -215,8 +223,8 @@ The project includes **296 tests** (~88% code coverage): 277 backend tests (most
 ### Run All Tests
 
 ```bash
-# Test dependencies
-pip install -r requirements-dev.txt
+# Test dependencies (inside the billsonline-env pyenv virtualenv — see Quick Start)
+python -m pip install -r requirements-dev.txt
 
 # Backend tests
 pytest --ignore=tests/ui

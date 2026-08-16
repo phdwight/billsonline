@@ -282,8 +282,9 @@ Not applicable to this project: i18n, accessibility audits beyond plain HTML, AP
 7. Confirm the baseline:
 
    ```bash
-   python -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
+   pyenv install 3.12 --skip-existing && pyenv virtualenv 3.12 billsonline-env
+   pyenv version  # billsonline-env auto-activates via the committed .python-version
+   python -m pip install -r requirements.txt -r requirements-dev.txt
    playwright install --with-deps chromium
    flask --app wsgi:app db upgrade
    pytest --cov=app --cov-report=term-missing --cov-fail-under=80 tests/
