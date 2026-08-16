@@ -16,7 +16,7 @@
 
 <div class="month-grid">
   {% for c in cards %}
-  <a class="card blueprint elev-sm month-card" href="{{ url_for('months.show', bill_id=c.bill.id) }}"
+  <a class="card blueprint elev-sm month-card{{ ' is-archived' if c.bill.archived }}" href="{{ url_for('months.show', bill_id=c.bill.id) }}"
      style="animation-delay: {{ loop.index0 * 0.05 }}s">
     <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
     <div class="month-card-top">

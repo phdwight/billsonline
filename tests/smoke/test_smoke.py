@@ -67,3 +67,13 @@ def test_month_creation_flow(page: Page, monitor: ErrorMonitor, base_url: str):
     assert re.search(r"/months/\d+", page.url), f"expected month detail page, got {page.url}"
     snap(page, "month-detail")
     assert_page_healthy(page, monitor, "month detail")
+
+    # Archive the month and confirm home renders it as a greyed-out card.
+    page.locator("form[action$='/archive'] button:has-text('Archive')").click()
+    page.wait_for_load_state("networkidle")
+    page.goto(f"{base_url}/", wait_until="networkidle")
+    assert page.locator("a.month-card.is-archived").count() == 1, (
+        "archived month should render with the is-archived card style"
+    )
+    snap(page, "home-archived")
+    assert_page_healthy(page, monitor, "home with archived month")

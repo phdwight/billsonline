@@ -355,6 +355,12 @@ td.num, th.num { text-align: right; }
   color: inherit; text-decoration: none;
 }
 .month-card:hover { box-shadow: var(--shadow-md); color: inherit; }
+.month-card.is-archived {
+  opacity: 0.65;
+  filter: grayscale(0.4);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+.month-card.is-archived:hover { opacity: 1; filter: none; }
 .month-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .month-card h3 { margin: 0; }
 .month-card-total {
