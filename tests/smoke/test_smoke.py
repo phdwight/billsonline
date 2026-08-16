@@ -9,6 +9,7 @@ Two layers:
 
 Run via: bash scripts/smoke.sh   (builds billsonline:local, deploys, runs this)
 """
+import json
 import re
 
 import pytest
@@ -34,6 +35,17 @@ def test_page_renders_without_errors(page: Page, monitor: ErrorMonitor, base_url
     assert response is not None and response.ok, f"{path} returned {response and response.status}"
     snap(page, name)
     assert_page_healthy(page, monitor, name)
+
+
+@pytest.mark.smoke
+def test_favicon_animates(page: Page, monitor: ErrorMonitor, base_url: str):
+    """The canvas-driven favicon swaps in data-URL frames that change over time."""
+    page.goto(f"{base_url}/", wait_until="networkidle")
+    icon_href = "document.querySelector('link[rel=icon]').href"
+    page.wait_for_function(f"{icon_href}.startsWith('data:image/png')")
+    first = page.evaluate(icon_href)
+    page.wait_for_function(f"{icon_href} !== {json.dumps(first)}", timeout=5000)
+    assert_page_healthy(page, monitor, "favicon animation")
 
 
 @pytest.mark.smoke
