@@ -9,7 +9,10 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - DATABASE_URL=sqlite:////app/instance/billsonline.db
     volumes:
-      - app-data:/app/instance
+      # APP_DATA_DIR unset: "app-data", a Docker-managed named volume.
+      # APP_DATA_DIR set to an absolute path: a bind mount on a NAS
+      # directory you can see and snapshot.
+      - ${APP_DATA_DIR:-app-data}:/app/instance
     restart: unless-stopped
 
 volumes:
